@@ -2,46 +2,45 @@ import { client } from "../client.js";
 
 export const markReadTool = {
   name: "mark_read",
-  description: `Mark one or more emails as read. Returns the count of messages marked and remaining unread count.
+  description: `Mark an email as read. Returns the message ID and read status.
 
-Example: mark_read(message_ids=["msg_uuid_1", "msg_uuid_2"])`,
+Example: mark_read(message_id="msg_uuid")`,
   inputSchema: {
     type: "object" as const,
     properties: {
-      message_ids: {
-        type: "array",
-        items: { type: "string" },
-        description: "Array of message IDs to mark as read",
+      message_id: {
+        type: "string",
+        description: "The message ID to mark as read",
       },
     },
-    required: ["message_ids"],
+    required: ["message_id"],
   },
 
   async handler(args: Record<string, unknown>) {
-    const messageIds = args.message_ids as string[];
-    if (!Array.isArray(messageIds) || messageIds.length === 0) {
+    const messageId = args.message_id as string;
+    if (!messageId) {
       return {
         success: false,
         error: "INVALID_ARGUMENT",
-        message: "'message_ids' must be a non-empty array.",
+        message: "'message_id' is required.",
       };
     }
 
-    const result = await client.markRead(messageIds);
+    const result = await client.markRead(messageId);
 
     if (!result.success) {
       return {
         success: false,
         error: result.error?.code || "MARK_FAILED",
-        message: result.error?.message || "Failed to mark messages as read",
+        message: result.error?.message || "Failed to mark message as read",
       };
     }
 
     const data = result.data as Record<string, unknown>;
     return {
       success: true,
-      marked_read: data.marked_read || messageIds.length,
-      remaining_unread: data.remaining_unread ?? null,
+      message_id: messageId,
+      is_read: data.is_read ?? true,
     };
   },
 };

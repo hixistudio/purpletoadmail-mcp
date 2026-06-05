@@ -5,9 +5,7 @@ export const sendEmailTool = {
   name: "send_email",
   description: `Send an email from a PurpleToad-managed mailbox. Returns a message ID for tracking delivery status.
 
-Example: send_email(from="agent@mycompany.com", to=["john@example.com"], subject="Hello", text="Hello from my agent!")
-
-Rate limits: Starter 200/day, Builder 1000/day. Check remaining in response headers.`,
+Example: send_email(from="agent@mycompany.com", to=["john@example.com"], subject="Hello", text="Hello from my agent!")`,
   inputSchema: {
     type: "object" as const,
     properties: {
@@ -73,7 +71,7 @@ Rate limits: Starter 200/day, Builder 1000/day. Check remaining in response head
     }
 
     const result = await client.sendEmail({
-      from,
+      from_email: from,
       to,
       cc: (args.cc as string[]) || [],
       bcc: (args.bcc as string[]) || [],
@@ -94,15 +92,21 @@ Rate limits: Starter 200/day, Builder 1000/day. Check remaining in response head
     }
 
     const data = result.data as Record<string, unknown>;
+    const rateLimit = (data.rate_limit || {}) as Record<string, unknown>;
     return {
       success: true,
-      message_id: data.id || data.message_id,
+      message_id: data.message_id || data.id,
       status: data.status,
       estimated_delivery: data.estimated_delivery,
       from,
       to,
       subject: args.subject,
       thread_id: args.thread_id || null,
+      rate_limit: {
+        remaining_today: rateLimit.remaining_today,
+        limit: rateLimit.limit,
+        resets_at: rateLimit.resets_at,
+      },
     };
   },
 };
@@ -113,7 +117,7 @@ function _getSuggestion(code?: string): string {
     RATE_LIMIT_EXCEEDED: "Daily email limit reached. Wait until tomorrow or upgrade your plan.",
     SUPPRESSED_ADDRESS: "The recipient address has been suppressed due to hard bounces. Use a different address.",
     INSUFFICIENT_SCOPE: "Your API key needs 'send' scope. Create a new key with send permission.",
-    DOMAIN_NOT_VERIFIED: "The sender domain is not verified. Add DNS records and wait for verification.",
+    DOMAIN_NOT_ACTIVE: "The sender domain is not verified. Add DNS records and wait for verification.",
   };
   return suggestions[code || ""] || "Check the error details and retry. Contact support if the issue persists.";
 }

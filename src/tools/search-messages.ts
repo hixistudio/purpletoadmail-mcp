@@ -57,22 +57,27 @@ Example: search_messages(query="invoice", mailbox="billing@mycompany.com", limit
 
     const data = result.data as Record<string, unknown>;
     const messages = (data.messages || data.items || []) as Array<Record<string, unknown>>;
-    const total = (data.total || messages.length) as number;
+    const pagination = (data.pagination || {}) as Record<string, unknown>;
+    const total = (pagination.total || messages.length) as number;
 
     return {
       success: true,
-      messages: messages.map((m) => ({
-        id: m.id,
-        from: { name: m.from_name, email: m.from_email },
-        subject: m.subject,
-        body_preview: m.body_preview,
-        is_read: m.is_read,
-        has_attachments: m.has_attachments,
-        date: m.email_date || m.created_at,
-        thread_id: m.thread_id,
-      })),
+      messages: messages.map((m) => {
+        const fromObj = (m.from || m.from_addr || {}) as Record<string, unknown>;
+        return {
+          id: m.id,
+          from: { name: fromObj.name, email: fromObj.email },
+          subject: m.subject,
+          body_preview: m.body_preview,
+          is_read: m.is_read,
+          has_attachments: m.has_attachments,
+          date: m.email_date || m.created_at,
+          thread_id: m.thread_id,
+          relevance_score: m.relevance_score,
+        };
+      }),
       total,
-      page: args.page || 1,
+      page: pagination.page || 1,
       per_page: Math.min(args.per_page as number || 20, 100),
     };
   },

@@ -31,7 +31,7 @@ export class PurpleToadClient {
         method,
         headers: {
           "Content-Type": "application/json",
-          "X-API-Key": this.apiKey,
+          "Authorization": `Bearer ${this.apiKey}`,
         },
         body: body ? JSON.stringify(body) : undefined,
         signal: controller.signal,
@@ -169,8 +169,16 @@ export class PurpleToadClient {
     thread_id?: string;
     page?: number;
   }) {
-    const entries = Object.entries(params || {}).filter(([, v]) => v !== undefined);
-    const qs = entries.length ? "?" + new URLSearchParams(entries as [string, string][]).toString() : "";
+    const mapped: Record<string, string> = {};
+    if (params?.mailbox) mapped.mailbox = params.mailbox;
+    if (params?.unread_only !== undefined) mapped.unread = String(params.unread_only);
+    if (params?.from) mapped.from_email = params.from;
+    if (params?.since) mapped.date_from = params.since;
+    if (params?.limit) mapped.per_page = String(Math.min(params.limit, 100));
+    if (params?.thread_id) mapped.thread_id = params.thread_id;
+    if (params?.page) mapped.page = String(params.page);
+
+    const qs = Object.keys(mapped).length ? "?" + new URLSearchParams(mapped).toString() : "";
     return this.request("GET", `/api/v1/inbound/messages${qs}`);
   }
 
@@ -178,8 +186,10 @@ export class PurpleToadClient {
     return this.request("GET", `/api/v1/inbound/messages/${encodeURIComponent(messageId)}`);
   }
 
-  async markRead(messageIds: string[]) {
-    return this.request("PATCH", "/api/v1/inbound/messages/read", { message_ids: messageIds });
+  async markRead(messageId: string) {
+    return this.request("PATCH", `/api/v1/inbound/messages/${encodeURIComponent(messageId)}`, {
+      read: true,
+    });
   }
 
   async archiveMessage(messageId: string) {
@@ -199,7 +209,7 @@ export class PurpleToadClient {
   // ─── Outbound Messages ────────────────────────────────────────────────────
 
   async sendEmail(params: {
-    from: string;
+    from_email: string;
     to: string[];
     cc?: string[];
     bcc?: string[];
@@ -209,14 +219,6 @@ export class PurpleToadClient {
     thread_id?: string;
   }) {
     return this.request("POST", "/api/v1/outbound/send", params);
-  }
-
-  async replyToMessage(originalMessageId: string, text: string, html?: string) {
-    return this.request("POST", "/api/v1/outbound/send/reply", {
-      original_message_id: originalMessageId,
-      text,
-      html,
-    });
   }
 
   async listOutboundMessages(params?: {
@@ -238,7 +240,7 @@ export class PurpleToadClient {
   }
 
   async scheduleEmail(params: {
-    from: string;
+    from_email: string;
     to: string[];
     cc?: string[];
     bcc?: string[];
@@ -252,80 +254,6 @@ export class PurpleToadClient {
 
   async cancelScheduled(messageId: string) {
     return this.request("DELETE", `/api/v1/outbound/schedule/${encodeURIComponent(messageId)}`);
-  }
-
-  // ─── Mailbox Status ───────────────────────────────────────────────────────
-
-  async getMailboxStatus(mailbox: string) {
-    return this.request("GET", `/api/v1/mailboxes/status?mailbox=${encodeURIComponent(mailbox)}`);
-  }
-
-  // ─── Webhooks ─────────────────────────────────────────────────────────────
-
-  async listWebhooks() {
-    return this.request("GET", "/api/v1/webhooks");
-  }
-
-  async getWebhook(webhookId: string) {
-    return this.request("GET", `/api/v1/webhooks/${encodeURIComponent(webhookId)}`);
-  }
-
-  async createWebhook(url: string, events: string[]) {
-    return this.request("POST", "/api/v1/webhooks", { url, events });
-  }
-
-  async updateWebhook(webhookId: string, params: { url?: string; events?: string[]; active?: boolean }) {
-    return this.request("PUT", `/api/v1/webhooks/${encodeURIComponent(webhookId)}`, params);
-  }
-
-  async deleteWebhook(webhookId: string) {
-    return this.request("DELETE", `/api/v1/webhooks/${encodeURIComponent(webhookId)}`);
-  }
-
-  async testWebhook(webhookId: string) {
-    return this.request("POST", `/api/v1/webhooks/${encodeURIComponent(webhookId)}/test`);
-  }
-
-  async getWebhookDeliveries(webhookId: string, limit?: number) {
-    const qs = limit ? `?limit=${limit}` : "";
-    return this.request("GET", `/api/v1/webhooks/${encodeURIComponent(webhookId)}/deliveries${qs}`);
-  }
-
-  // ─── API Keys ─────────────────────────────────────────────────────────────
-
-  async listApiKeys() {
-    return this.request("GET", "/api/v1/api-keys");
-  }
-
-  async createApiKey(params: {
-    name: string;
-    scopes?: string[];
-    restricted_domains?: string[];
-    allowed_ips?: string[];
-    rate_limit_daily?: number;
-  }) {
-    return this.request("POST", "/api/v1/api-keys", params);
-  }
-
-  async revokeApiKey(keyId: string, reason?: string) {
-    return this.request("DELETE", `/api/v1/api-keys/${encodeURIComponent(keyId)}`, reason ? { reason } : undefined);
-  }
-
-  async updateApiKey(
-    keyId: string,
-    params: {
-      scopes?: string[];
-      restricted_domains?: string[];
-      allowed_ips?: string[];
-      rate_limit_daily?: number;
-      name?: string;
-    }
-  ) {
-    return this.request("PUT", `/api/v1/api-keys/${encodeURIComponent(keyId)}`, params);
-  }
-
-  async getApiKeyUsage(keyId: string) {
-    return this.request("GET", `/api/v1/api-keys/${encodeURIComponent(keyId)}/usage`);
   }
 
   // ─── Account ──────────────────────────────────────────────────────────────
@@ -342,20 +270,11 @@ export class PurpleToadClient {
     return this.request("GET", "/api/v1/account/plan");
   }
 
-  // ─── Deliverability ───────────────────────────────────────────────────────
-
-  async getDeliverability() {
-    return this.request("GET", "/api/v1/deliverability");
-  }
-
-  async getDomainDeliverability(domainId: string) {
-    return this.request("GET", `/api/v1/deliverability/domains/${encodeURIComponent(domainId)}`);
-  }
-
   // ─── Validation ───────────────────────────────────────────────────────────
 
   async validateKey() {
-    return this.request("GET", "/api/v1/account/me");
+    // Use a lightweight endpoint that accepts API keys
+    return this.request("GET", "/api/v1/inbound/messages?per_page=0");
   }
 }
 

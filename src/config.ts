@@ -19,6 +19,19 @@ function loadConfig(): Config {
   const port = process.env.PURPLETOAD_PORT ? parseInt(process.env.PURPLETOAD_PORT, 10) : undefined;
   const defaultFrom = process.env.PURPLETOAD_DEFAULT_FROM || undefined;
 
+  if (Number.isNaN(timeout) || timeout <= 0) {
+    console.error("ERROR: PURPLETOAD_TIMEOUT must be a positive integer");
+    process.exit(1);
+  }
+  if (port !== undefined && (Number.isNaN(port) || port <= 0 || port > 65535)) {
+    console.error("ERROR: PURPLETOAD_PORT must be a valid port number (1-65535)");
+    process.exit(1);
+  }
+  if (transport !== "stdio" && transport !== "sse") {
+    console.error("ERROR: PURPLETOAD_TRANSPORT must be 'stdio' or 'sse'");
+    process.exit(1);
+  }
+
   const configPath = join(homedir(), ".purpletoad", "config.json");
   if (existsSync(configPath)) {
     try {
@@ -31,8 +44,8 @@ function loadConfig(): Config {
         port: port || fileConfig.port,
         defaultFrom: defaultFrom || fileConfig.defaultFrom,
       };
-    } catch {
-      // Ignore parse errors
+    } catch (err) {
+      console.error(`Warning: Failed to parse ${configPath}: ${err instanceof Error ? err.message : err}`);
     }
   }
 
@@ -42,9 +55,7 @@ function loadConfig(): Config {
 export const config = loadConfig();
 
 if (!config.apiKey) {
-  console.error(
-    "ERROR: PurpleToad API key required. Set PURPLETOAD_API_KEY or run 'npx purpletoad-mcp init'"
-  );
+  console.error("ERROR: PurpleToad API key required. Set PURPLETOAD_API_KEY env var.");
   process.exit(1);
 }
 

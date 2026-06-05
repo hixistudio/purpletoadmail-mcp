@@ -3,14 +3,12 @@ import { listDomainsTool } from "./list-domains.js";
 import { getDomainTool } from "./get-domain.js";
 import { listMailboxesTool } from "./list-mailboxes.js";
 import { getMailboxTool } from "./get-mailbox.js";
-import { getMailboxStatusTool } from "./get-mailbox-status.js";
 import { listAliasesTool } from "./list-aliases.js";
 import { listMessagesTool } from "./list-messages.js";
 import { getMessageTool } from "./get-message.js";
 import { searchMessagesTool } from "./search-messages.js";
 import { markReadTool } from "./mark-read.js";
 import { sendEmailTool } from "./send-email.js";
-import { replyToMessageTool } from "./reply-to-message.js";
 import { scheduleEmailTool } from "./schedule-email.js";
 import { cancelScheduledTool } from "./cancel-scheduled.js";
 import { listOutboundTool } from "./list-outbound.js";
@@ -28,21 +26,19 @@ export const tools: Record<string, ToolDef> = {
   // ─── Domain Setup (selling point) ─────────────────────────────────────────
   [createDomainTool.name]: createDomainTool as ToolDef,
 
-  // ─── Tier 2 — Read-Only Reference ─────────────────────────────────────────
+  // ─── Read-Only Reference ──────────────────────────────────────────────────
   [listDomainsTool.name]: listDomainsTool as ToolDef,
   [getDomainTool.name]: getDomainTool as ToolDef,
   [listMailboxesTool.name]: listMailboxesTool as ToolDef,
   [getMailboxTool.name]: getMailboxTool as ToolDef,
   [listAliasesTool.name]: listAliasesTool as ToolDef,
 
-  // ─── Tier 1 — Core Email Operations ───────────────────────────────────────
-  [getMailboxStatusTool.name]: getMailboxStatusTool as ToolDef,
+  // ─── Core Email Operations ────────────────────────────────────────────────
   [listMessagesTool.name]: listMessagesTool as ToolDef,
   [getMessageTool.name]: getMessageTool as ToolDef,
   [searchMessagesTool.name]: searchMessagesTool as ToolDef,
   [markReadTool.name]: markReadTool as ToolDef,
   [sendEmailTool.name]: sendEmailTool as ToolDef,
-  [replyToMessageTool.name]: replyToMessageTool as ToolDef,
   [scheduleEmailTool.name]: scheduleEmailTool as ToolDef,
   [cancelScheduledTool.name]: cancelScheduledTool as ToolDef,
   [listOutboundTool.name]: listOutboundTool as ToolDef,

@@ -80,7 +80,7 @@ Example: schedule_email(from="agent@mycompany.com", to=["john@example.com"], sub
     }
 
     const result = await client.scheduleEmail({
-      from,
+      from_email: from,
       to,
       cc: (args.cc as string[]) || [],
       bcc: (args.bcc as string[]) || [],
@@ -117,7 +117,7 @@ function _getSuggestion(code?: string): string {
   const suggestions: Record<string, string> = {
     INVALID_FROM: "The 'from' address must be a mailbox you own. Use list_mailboxes to see available addresses.",
     RATE_LIMIT_EXCEEDED: "Daily email limit reached. Wait until tomorrow or upgrade your plan.",
-    DOMAIN_NOT_VERIFIED: "The sender domain is not verified. Add DNS records and wait for verification.",
+    DOMAIN_NOT_ACTIVE: "The sender domain is not verified. Add DNS records and wait for verification.",
   };
   return suggestions[code || ""] || "Check the error details and retry.";
 }

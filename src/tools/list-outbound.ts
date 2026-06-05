@@ -10,7 +10,7 @@ Example: list_outbound_messages(status="delivered", limit=20)`,
     properties: {
       status: {
         type: "string",
-        description: "Filter by status: queued, sent, delivered, bounced, failed (optional)",
+        description: "Filter by status: queued, scheduled, sent, delivered, bounced, deferred, dead_letter, complained, cancelled, test_captured (optional)",
       },
       domain_id: {
         type: "string",
@@ -63,7 +63,8 @@ Example: list_outbound_messages(status="delivered", limit=20)`,
 
     const data = result.data as Record<string, unknown>;
     const messages = (data.messages || data.items || []) as Array<Record<string, unknown>>;
-    const total = (data.total || messages.length) as number;
+    const pagination = (data.pagination || {}) as Record<string, unknown>;
+    const total = (pagination.total || messages.length) as number;
 
     return {
       success: true,
@@ -75,11 +76,10 @@ Example: list_outbound_messages(status="delivered", limit=20)`,
         status: m.status,
         sent_at: m.sent_at,
         delivered_at: m.delivered_at,
-        body_preview: m.body_preview,
         thread_id: m.thread_id,
       })),
       total,
-      page: args.page || 1,
+      page: pagination.page || 1,
       per_page: Math.min(args.per_page as number || 20, 100),
     };
   },

@@ -38,10 +38,11 @@ Example: get_message(message_id="msg_uuid")`,
     }
 
     const data = result.data as Record<string, unknown>;
+    const fromObj = (data.from || data.from_addr || {}) as Record<string, unknown>;
     return {
       success: true,
       id: data.id,
-      from: { name: data.from_name, email: data.from_email },
+      from: { name: fromObj.name, email: fromObj.email },
       to: data.to,
       subject: data.subject,
       date: data.email_date || data.created_at,

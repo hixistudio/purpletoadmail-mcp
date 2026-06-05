@@ -8,15 +8,13 @@ import { config } from "./config.js";
 import { client } from "./client.js";
 import { tools } from "./tools/index.js";
 
-// CHECKPOINT: PRD-06 FR-6.1.4 — Validate API key on startup
 async function validateApiKey(): Promise<boolean> {
   const result = await client.validateKey();
   if (!result.success) {
     console.error(`ERROR: API key validation failed: ${result.error?.message || "Unknown error"}`);
     return false;
   }
-  const data = result.data as Record<string, unknown>;
-  console.error(`PurpleToad MCP connected as ${data.email || "unknown"} (${data.plan || "unknown"} plan)`);
+  console.error("PurpleToad MCP API key validated successfully");
   return true;
 }
 
@@ -29,7 +27,7 @@ export async function startServer() {
   const server = new Server(
     {
       name: "purpletoad-mcp",
-      version: "1.0.0",
+      version: "1.1.0",
     },
     {
       capabilities: {
@@ -40,18 +38,15 @@ export async function startServer() {
     }
   );
 
-  // CHECKPOINT: PRD-06 FR-6.1.5 — tools/list handler
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     const toolList = Object.values(tools).map((tool) => ({
       name: tool.name,
       description: tool.description,
       inputSchema: tool.inputSchema as { type: "object"; properties?: object; [k: string]: unknown },
     }));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return { tools: toolList as any };
+    return { tools: toolList };
   });
 
-  // CHECKPOINT: PRD-06 FR-6.1.5 — tools/call handler
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
     const tool = tools[name];
@@ -102,22 +97,39 @@ export async function startServer() {
     }
   });
 
-  // CHECKPOINT: PRD-06 FR-6.1.2 — Transport selection
   if (config.transport === "sse") {
     const express = await import("express");
     const { SSEServerTransport } = await import("@modelcontextprotocol/sdk/server/sse.js");
     const app = express.default();
 
-    app.get("/sse", async (_req: unknown, res: unknown) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const transport = new SSEServerTransport("/message", res as any);
+    const transports: Map<string, InstanceType<typeof SSEServerTransport>> = new Map();
+
+    app.get("/sse", async (_req, res) => {
+      const transport = new SSEServerTransport("/message", res);
       await server.connect(transport);
+      // _sessionId is private in SDK v0.5.0
+      const sessionId = (transport as unknown as { _sessionId: string })._sessionId;
+      transports.set(sessionId, transport);
+
+      res.on("close", () => {
+        transports.delete(sessionId);
+      });
     });
 
-    app.post("/message", async (_req: unknown, res: unknown) => {
-      // Messages handled by SSE transport
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (res as any).status(200).end();
+    app.post("/message", async (req, res) => {
+      const sessionId = req.query.sessionId as string;
+      if (!sessionId) {
+        res.status(400).end("Missing sessionId");
+        return;
+      }
+
+      const transport = transports.get(sessionId);
+      if (!transport) {
+        res.status(404).end("Session not found");
+        return;
+      }
+
+      await transport.handlePostMessage(req, res);
     });
 
     const port = config.port || 3001;

@@ -39,15 +39,14 @@ Example: list_messages(mailbox="agent@mycompany.com", unread_only=true, limit=20
   },
 
   async handler(args: Record<string, unknown>) {
-    const params: Record<string, string | boolean | number> = {};
-    if (args.mailbox) params.mailbox = args.mailbox as string;
-    if (args.unread_only) params.unread_only = true;
-    if (args.from) params.from = args.from as string;
-    if (args.since) params.since = args.since as string;
-    if (args.limit) params.limit = Math.min(args.limit as number, 100);
-    if (args.thread_id) params.thread_id = args.thread_id as string;
-
-    const result = await client.listMessages(params);
+    const result = await client.listMessages({
+      mailbox: args.mailbox as string | undefined,
+      unread_only: args.unread_only as boolean | undefined,
+      from: args.from as string | undefined,
+      since: args.since as string | undefined,
+      limit: args.limit as number | undefined,
+      thread_id: args.thread_id as string | undefined,
+    });
 
     if (!result.success) {
       return {
@@ -59,23 +58,27 @@ Example: list_messages(mailbox="agent@mycompany.com", unread_only=true, limit=20
 
     const data = result.data as Record<string, unknown>;
     const messages = (data.messages || data.items || []) as Array<Record<string, unknown>>;
-    const total = (data.total || messages.length) as number;
-    const unreadCount = (data.unread_count ?? data.unread ?? 0) as number;
+    const pagination = (data.pagination || {}) as Record<string, unknown>;
+    const total = (pagination.total || messages.length) as number;
 
     return {
       success: true,
-      messages: messages.map((m) => ({
-        id: m.id,
-        from: { name: m.from_name, email: m.from_email },
-        subject: m.subject,
-        body_preview: m.body_preview,
-        is_read: m.is_read,
-        has_attachments: m.has_attachments,
-        date: m.email_date || m.created_at,
-        thread_id: m.thread_id,
-      })),
+      messages: messages.map((m) => {
+        const fromObj = (m.from || m.from_addr || {}) as Record<string, unknown>;
+        return {
+          id: m.id,
+          from: { name: fromObj.name, email: fromObj.email },
+          subject: m.subject,
+          body_preview: m.body_preview,
+          is_read: m.is_read,
+          has_attachments: m.has_attachments,
+          date: m.email_date || m.created_at,
+          thread_id: m.thread_id,
+        };
+      }),
       total,
-      unread_count: unreadCount,
+      page: pagination.page || 1,
+      per_page: pagination.per_page || 20,
     };
   },
 };
