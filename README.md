@@ -98,9 +98,11 @@ PURPLETOAD_TRANSPORT=sse PURPLETOAD_PORT=3001 npx purpletoad-mcp
 
 Then configure your client with `http://localhost:3001/sse`.
 
+> **Security note:** The SSE endpoint requires `Authorization: Bearer <PURPLETOAD_API_KEY>` on the initial `/sse` request. Without a valid token, the connection is rejected with HTTP 401.
+
 ## Tool Reference
 
-The server exposes **18 tools**.
+The server exposes **20 tools**.
 
 ### Email Operations
 
@@ -113,6 +115,7 @@ The server exposes **18 tools**.
 | `get_message` | Get full message body and attachments |
 | `search_messages` | Full-text search across all inbound emails |
 | `mark_read` | Mark a message as read |
+| `archive_message` | Archive a message to keep your inbox clean |
 | `list_outbound_messages` | List sent emails with delivery status |
 | `get_outbound_message` | Track a single email's delivery history |
 | `get_account` | Account profile, plan, and usage stats |
@@ -133,6 +136,7 @@ The server exposes **18 tools**.
 |------|-------------|
 | `create_domain` | Add a new domain and receive copy-paste DNS records. Requires `manage` scope. |
 | `create_mailbox` | Create a mailbox under a verified domain. The password is shown once — change it immediately. Requires `manage` scope. |
+| `update_mailbox_password` | Update a mailbox password. Use with caution. Requires `manage` scope. |
 | `create_alias` | Create an email alias that forwards to target mailboxes. Requires `manage` scope. |
 
 ## Example Workflows
@@ -156,7 +160,7 @@ Agent: send_email(
 User: Do I have any unread emails in support@mycompany.com?
 
 Agent: list_messages(mailbox="support@mycompany.com", unread_only=true)
-Agent: get_mailbox_status(mailbox="support@mycompany.com")
+Agent: get_account()
 ```
 
 ### "Find that invoice from last week"

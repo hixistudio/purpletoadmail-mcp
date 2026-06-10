@@ -4,6 +4,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import { randomUUID } from "crypto";
 import { config } from "./config.js";
 import { client } from "./client.js";
 import { tools } from "./tools/index.js";
@@ -97,6 +98,28 @@ export async function startServer() {
     }
   });
 
+  let httpServer: import("http").Server | null = null;
+  let activeTransport: StdioServerTransport | { close: () => Promise<void> } | null = null;
+
+  const shutdown = async (signal: string) => {
+    console.error(`PurpleToad MCP received ${signal}, shutting down...`);
+    try {
+      if (activeTransport) {
+        await activeTransport.close();
+      }
+      await server.close();
+      if (httpServer) {
+        httpServer.close();
+      }
+    } catch {
+      // ignore cleanup errors
+    }
+    process.exit(0);
+  };
+
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
+
   if (config.transport === "sse") {
     const express = await import("express");
     const { SSEServerTransport } = await import("@modelcontextprotocol/sdk/server/sse.js");
@@ -104,15 +127,29 @@ export async function startServer() {
 
     const transports: Map<string, InstanceType<typeof SSEServerTransport>> = new Map();
 
-    app.get("/sse", async (_req, res) => {
+    const validateBearer = (req: import("express").Request, res: import("express").Response, next: import("express").NextFunction) => {
+      const auth = req.headers.authorization || "";
+      const match = auth.match(/^Bearer\s+(.+)$/);
+      if (!match || match[1] !== config.apiKey) {
+        res.status(401).json({ error: "Unauthorized", message: "Invalid or missing Bearer token." });
+        return;
+      }
+      next();
+    };
+
+    app.get("/sse", validateBearer, async (_req, res) => {
       const transport = new SSEServerTransport("/message", res);
-      await server.connect(transport);
-      // _sessionId is private in SDK v0.5.0
-      const sessionId = (transport as unknown as { _sessionId: string })._sessionId;
+      const sessionId = randomUUID();
       transports.set(sessionId, transport);
+      activeTransport = transport;
+
+      await server.connect(transport);
 
       res.on("close", () => {
         transports.delete(sessionId);
+        if (activeTransport === transport) {
+          activeTransport = null;
+        }
       });
     });
 
@@ -133,11 +170,12 @@ export async function startServer() {
     });
 
     const port = config.port || 3001;
-    app.listen(port, () => {
+    httpServer = app.listen(port, () => {
       console.error(`PurpleToad MCP SSE server on port ${port}`);
     });
   } else {
     const transport = new StdioServerTransport();
+    activeTransport = transport;
     await server.connect(transport);
     console.error("PurpleToad MCP server started (stdio)");
   }

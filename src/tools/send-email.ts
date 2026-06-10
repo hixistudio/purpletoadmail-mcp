@@ -1,5 +1,6 @@
 import { client } from "../client.js";
 import { config } from "../config.js";
+import { validateEmailList, validateSubject } from "../lib/validation.js";
 
 export const sendEmailTool = {
   name: "send_email",
@@ -61,21 +62,38 @@ Example: send_email(from="agent@mycompany.com", to=["john@example.com"], subject
       };
     }
 
-    const to = args.to as string[];
-    if (!Array.isArray(to) || to.length === 0) {
-      return {
-        success: false,
-        error: "INVALID_ARGUMENT",
-        message: "'to' must be a non-empty array of email addresses.",
-      };
+    const toValidation = validateEmailList(args.to, "to");
+    if (!toValidation.valid) {
+      return { success: false, error: "INVALID_ARGUMENT", message: toValidation.error };
+    }
+
+    const cc = args.cc as string[] | undefined;
+    if (cc && cc.length > 0) {
+      const ccValidation = validateEmailList(cc, "cc");
+      if (!ccValidation.valid) {
+        return { success: false, error: "INVALID_ARGUMENT", message: ccValidation.error };
+      }
+    }
+
+    const bcc = args.bcc as string[] | undefined;
+    if (bcc && bcc.length > 0) {
+      const bccValidation = validateEmailList(bcc, "bcc");
+      if (!bccValidation.valid) {
+        return { success: false, error: "INVALID_ARGUMENT", message: bccValidation.error };
+      }
+    }
+
+    const subjectValidation = validateSubject(args.subject);
+    if (!subjectValidation.valid) {
+      return { success: false, error: "INVALID_ARGUMENT", message: subjectValidation.error };
     }
 
     const result = await client.sendEmail({
       from_email: from,
-      to,
-      cc: (args.cc as string[]) || [],
-      bcc: (args.bcc as string[]) || [],
-      subject: args.subject as string,
+      to: toValidation.emails,
+      cc: cc || [],
+      bcc: bcc || [],
+      subject: subjectValidation.subject,
       text: args.text as string | undefined,
       html: args.html as string | undefined,
       thread_id: args.thread_id as string | undefined,
@@ -99,7 +117,7 @@ Example: send_email(from="agent@mycompany.com", to=["john@example.com"], subject
       status: data.status,
       estimated_delivery: data.estimated_delivery,
       from,
-      to,
+      to: toValidation.emails,
       subject: args.subject,
       thread_id: args.thread_id || null,
       rate_limit: {

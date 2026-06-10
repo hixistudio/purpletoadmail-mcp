@@ -4,12 +4,14 @@ import { getDomainTool } from "./get-domain.js";
 import { createMailboxTool } from "./create-mailbox.js";
 import { listMailboxesTool } from "./list-mailboxes.js";
 import { getMailboxTool } from "./get-mailbox.js";
+import { updateMailboxPasswordTool } from "./update-mailbox-password.js";
 import { createAliasTool } from "./create-alias.js";
 import { listAliasesTool } from "./list-aliases.js";
 import { listMessagesTool } from "./list-messages.js";
 import { getMessageTool } from "./get-message.js";
 import { searchMessagesTool } from "./search-messages.js";
 import { markReadTool } from "./mark-read.js";
+import { archiveMessageTool } from "./archive-message.js";
 import { sendEmailTool } from "./send-email.js";
 import { scheduleEmailTool } from "./schedule-email.js";
 import { cancelScheduledTool } from "./cancel-scheduled.js";
@@ -24,30 +26,50 @@ export interface ToolDef {
   handler: (args: Record<string, unknown>) => Promise<unknown>;
 }
 
-export const tools: Record<string, ToolDef> = {
+const rawTools: ToolDef[] = [
   // ─── Domain Setup ─────────────────────────────────────────────────────────
-  [createDomainTool.name]: createDomainTool as ToolDef,
+  createDomainTool as ToolDef,
 
   // ─── Infrastructure Management ────────────────────────────────────────────
-  [createMailboxTool.name]: createMailboxTool as ToolDef,
-  [createAliasTool.name]: createAliasTool as ToolDef,
+  createMailboxTool as ToolDef,
+  updateMailboxPasswordTool as ToolDef,
+  createAliasTool as ToolDef,
 
   // ─── Read-Only Reference ──────────────────────────────────────────────────
-  [listDomainsTool.name]: listDomainsTool as ToolDef,
-  [getDomainTool.name]: getDomainTool as ToolDef,
-  [listMailboxesTool.name]: listMailboxesTool as ToolDef,
-  [getMailboxTool.name]: getMailboxTool as ToolDef,
-  [listAliasesTool.name]: listAliasesTool as ToolDef,
+  listDomainsTool as ToolDef,
+  getDomainTool as ToolDef,
+  listMailboxesTool as ToolDef,
+  getMailboxTool as ToolDef,
+  listAliasesTool as ToolDef,
 
   // ─── Core Email Operations ────────────────────────────────────────────────
-  [listMessagesTool.name]: listMessagesTool as ToolDef,
-  [getMessageTool.name]: getMessageTool as ToolDef,
-  [searchMessagesTool.name]: searchMessagesTool as ToolDef,
-  [markReadTool.name]: markReadTool as ToolDef,
-  [sendEmailTool.name]: sendEmailTool as ToolDef,
-  [scheduleEmailTool.name]: scheduleEmailTool as ToolDef,
-  [cancelScheduledTool.name]: cancelScheduledTool as ToolDef,
-  [listOutboundTool.name]: listOutboundTool as ToolDef,
-  [getOutboundTool.name]: getOutboundTool as ToolDef,
-  [getAccountTool.name]: getAccountTool as ToolDef,
-};
+  listMessagesTool as ToolDef,
+  getMessageTool as ToolDef,
+  searchMessagesTool as ToolDef,
+  markReadTool as ToolDef,
+  archiveMessageTool as ToolDef,
+  sendEmailTool as ToolDef,
+  scheduleEmailTool as ToolDef,
+  cancelScheduledTool as ToolDef,
+  listOutboundTool as ToolDef,
+  getOutboundTool as ToolDef,
+  getAccountTool as ToolDef,
+];
+
+// Runtime validation: hard-fail on malformed tools so issues are caught at startup
+for (const tool of rawTools) {
+  if (!tool || typeof tool.name !== "string" || !tool.name) {
+    throw new Error(`Tool registration failed: missing or invalid tool name.`);
+  }
+  if (typeof tool.handler !== "function") {
+    throw new Error(`Tool "${tool.name}" is missing a handler function.`);
+  }
+  if (!tool.inputSchema || typeof tool.inputSchema !== "object") {
+    throw new Error(`Tool "${tool.name}" is missing a valid inputSchema.`);
+  }
+}
+
+export const tools: Record<string, ToolDef> = {};
+for (const tool of rawTools) {
+  tools[tool.name] = tool;
+}

@@ -32,6 +32,7 @@ export class PurpleToadClient {
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${this.apiKey}`,
+          "User-Agent": "purpletoad-mcp/1.1.0",
         },
         body: body ? JSON.stringify(body) : undefined,
         signal: controller.signal,
@@ -273,8 +274,8 @@ export class PurpleToadClient {
   // ─── Validation ───────────────────────────────────────────────────────────
 
   async validateKey() {
-    // Use a lightweight endpoint that accepts API keys
-    return this.request("GET", "/api/v1/inbound/messages?per_page=0");
+    // Use a lightweight account endpoint for key validation
+    return this.request("GET", "/api/v1/account/me");
   }
 }
 
