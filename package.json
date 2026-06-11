@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.5.0",
+    "dodopayments-mcp": "^2.36.0",
     "express": "^5.2.1"
   },
   "devDependencies": {
