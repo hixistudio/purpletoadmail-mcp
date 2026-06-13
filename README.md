@@ -24,9 +24,6 @@ git clone https://github.com/hixistudio/purpletoad-mcp.git
 cd purpletoad-mcp
 npm install
 npm run build
-
-# Or install directly from GitHub
-npm install -g github:hixistudio/purpletoad-mcp
 ```
 
 Requires Node.js 18+.
@@ -40,7 +37,7 @@ npm login
 npm publish --access public
 ```
 
-After publishing, the client configs below can use `npx -y purpletoad-mcp` instead of the full local path.
+After publishing, the client configs below can use `npx -y purpletoad-mcp` instead of the local path.
 
 ## Quick Start
 
@@ -81,8 +78,8 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) o
 {
   "mcpServers": {
     "purpletoad": {
-      "command": "node",
-      "args": ["/opt/purpletoad/purpletoad-mcp/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "/opt/purpletoad/purpletoad-mcp"],
       "env": {
         "PURPLETOAD_API_KEY": "pt_live_your_key_here",
         "PURPLETOAD_DEFAULT_FROM": "agent@yourdomain.com"
@@ -100,8 +97,8 @@ Add to your MCP settings:
 {
   "mcpServers": {
     "purpletoad": {
-      "command": "node",
-      "args": ["/opt/purpletoad/purpletoad-mcp/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "/opt/purpletoad/purpletoad-mcp"],
       "env": {
         "PURPLETOAD_API_KEY": "pt_live_your_key_here"
       }
@@ -120,8 +117,8 @@ cat > ~/.kimi-code/mcp.json <<'EOF'
 {
   "mcpServers": {
     "purpletoad": {
-      "command": "node",
-      "args": ["/opt/purpletoad/purpletoad-mcp/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "/opt/purpletoad/purpletoad-mcp"],
       "env": {
         "PURPLETOAD_API_KEY": "pt_live_your_key_here",
         "PURPLETOAD_DEFAULT_FROM": "agent@yourdomain.com"
