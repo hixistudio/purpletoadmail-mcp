@@ -16,11 +16,31 @@ Your agent can:
 
 ## Installation
 
+`purpletoad-mcp` is not yet on npm. Install from the repo:
+
 ```bash
-npm install -g purpletoad-mcp
+# Clone and build locally
+git clone https://github.com/hixistudio/purpletoad-mcp.git
+cd purpletoad-mcp
+npm install
+npm run build
+
+# Or install directly from GitHub
+npm install -g github:hixistudio/purpletoad-mcp
 ```
 
 Requires Node.js 18+.
+
+### Publishing to npm (maintainers)
+
+When you are ready to make it available via `npx purpletoad-mcp`:
+
+```bash
+npm login
+npm publish --access public
+```
+
+After publishing, the client configs below can use `npx -y purpletoad-mcp` instead of the full local path.
 
 ## Quick Start
 
@@ -61,8 +81,8 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) o
 {
   "mcpServers": {
     "purpletoad": {
-      "command": "npx",
-      "args": ["-y", "purpletoad-mcp"],
+      "command": "node",
+      "args": ["/opt/purpletoad/purpletoad-mcp/dist/index.js"],
       "env": {
         "PURPLETOAD_API_KEY": "pt_live_your_key_here",
         "PURPLETOAD_DEFAULT_FROM": "agent@yourdomain.com"
@@ -80,8 +100,8 @@ Add to your MCP settings:
 {
   "mcpServers": {
     "purpletoad": {
-      "command": "npx",
-      "args": ["-y", "purpletoad-mcp"],
+      "command": "node",
+      "args": ["/opt/purpletoad/purpletoad-mcp/dist/index.js"],
       "env": {
         "PURPLETOAD_API_KEY": "pt_live_your_key_here"
       }
@@ -93,12 +113,17 @@ Add to your MCP settings:
 #### SSE (Remote / Self-hosted)
 
 ```bash
-PURPLETOAD_TRANSPORT=sse PURPLETOAD_PORT=3001 npx purpletoad-mcp
+cd /opt/purpletoad/purpletoad-mcp
+PURPLETOAD_TRANSPORT=sse PURPLETOAD_PORT=3001 node dist/index.js
 ```
 
 Then configure your client with `http://localhost:3001/sse`.
 
 > **Security note:** The SSE endpoint requires `Authorization: Bearer <PURPLETOAD_API_KEY>` on the initial `/sse` request. Without a valid token, the connection is rejected with HTTP 401.
+
+### Backend requirements
+
+No extra backend work is required. The MCP server talks to the standard PurpleToad Mail API (`https://api.purpletoadmail.com` by default, override with `PURPLETOAD_BASE_URL`). Just make sure your API key has the scopes you need (`send`, `read`, `manage`).
 
 ## Tool Reference
 
