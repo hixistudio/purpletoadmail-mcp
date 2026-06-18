@@ -1,3 +1,5 @@
+// CHECKPOINT: PRD-06 FR-6.3.1 / FR-6.3.2 Shared validation helpers and structured error formatting used by all tools.
+
 /**
  * Shared validation utilities for PurpleToad MCP tools.
  */

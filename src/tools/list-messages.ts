@@ -1,3 +1,5 @@
+// CHECKPOINT: PRD-06 FR-6.2.3 Tool: list_messages — lists received emails with filters.
+
 import { client } from "../client.js";
 
 export const listMessagesTool = {
@@ -61,6 +63,21 @@ Example: list_messages(mailbox="agent@mycompany.com", unread_only=true, limit=20
     const pagination = (data.pagination || {}) as Record<string, unknown>;
     const total = (pagination.total || messages.length) as number;
 
+    // Fetch unread count for the same filter set (best-effort).
+    let unreadCount: number | null = null;
+    const unreadResult = await client.listMessages({
+      mailbox: args.mailbox as string | undefined,
+      from: args.from as string | undefined,
+      thread_id: args.thread_id as string | undefined,
+      unread_only: true,
+      limit: 1,
+    });
+    if (unreadResult.success) {
+      const unreadData = unreadResult.data as Record<string, unknown>;
+      const unreadPagination = (unreadData.pagination || {}) as Record<string, unknown>;
+      unreadCount = (unreadPagination.total as number) ?? null;
+    }
+
     return {
       success: true,
       messages: messages.map((m) => {
@@ -77,6 +94,7 @@ Example: list_messages(mailbox="agent@mycompany.com", unread_only=true, limit=20
         };
       }),
       total,
+      unread_count: unreadCount,
       page: pagination.page || 1,
       per_page: pagination.per_page || 20,
     };

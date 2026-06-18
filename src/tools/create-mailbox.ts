@@ -1,3 +1,5 @@
+// CHECKPOINT: PRD-06 FR-6.2.2 Tool: create_mailbox — creates a new mailbox under a domain.
+
 import { client } from "../client.js";
 
 export const createMailboxTool = {
@@ -6,13 +8,17 @@ export const createMailboxTool = {
 
 Requires an API key with 'manage' scope.
 
-Example: create_mailbox(domain_id="uuid", local_part="agent", display_name="AI Agent", quota_mb=256)`,
+Example: create_mailbox(domain="mycompany.com", local_part="agent", display_name="AI Agent", quota_mb=256)`,
   inputSchema: {
     type: "object" as const,
     properties: {
+      domain: {
+        type: "string",
+        description: "The domain name to create the mailbox under (e.g., 'mycompany.com')",
+      },
       domain_id: {
         type: "string",
-        description: "The domain ID to create the mailbox under",
+        description: "Domain ID (alternative to domain name)",
       },
       local_part: {
         type: "string",
@@ -31,23 +37,58 @@ Example: create_mailbox(domain_id="uuid", local_part="agent", display_name="AI A
         description: "Storage quota in MB (optional, default 100)",
       },
     },
-    required: ["domain_id", "local_part"],
+    required: ["local_part"],
   },
 
   async handler(args: Record<string, unknown>) {
-    const domainId = args.domain_id as string;
     const localPart = args.local_part as string;
-
-    if (!domainId || !localPart) {
+    if (!localPart) {
       return {
         success: false,
         error: "INVALID_ARGUMENT",
-        message: "'domain_id' and 'local_part' are required.",
+        message: "'local_part' is required.",
       };
     }
 
+    let domainId = args.domain_id as string | undefined;
+    const domainName = args.domain as string | undefined;
+
+    if (!domainId && !domainName) {
+      return {
+        success: false,
+        error: "INVALID_ARGUMENT",
+        message: "Either 'domain' (domain name) or 'domain_id' is required.",
+      };
+    }
+
+    if (!domainId && domainName) {
+      const domainsResult = await client.listDomains();
+      if (!domainsResult.success) {
+        return {
+          success: false,
+          error: domainsResult.error?.code || "LIST_FAILED",
+          message: domainsResult.error?.message || "Failed to list domains",
+        };
+      }
+
+      const data = domainsResult.data as Record<string, unknown>;
+      const domains = (data.domains || []) as Array<Record<string, unknown>>;
+      const match = domains.find(
+        (d) => d.name === domainName || d.domain === domainName
+      );
+      if (!match) {
+        return {
+          success: false,
+          error: "DOMAIN_NOT_FOUND",
+          message: `Domain '${domainName}' not found.`,
+          suggestion: "Use list_domains to see available domains, or create the domain first with create_domain.",
+        };
+      }
+      domainId = String(match.id);
+    }
+
     const result = await client.createMailbox({
-      domain_id: domainId,
+      domain_id: domainId as string,
       local_part: localPart,
       display_name: args.display_name as string | undefined,
       password: args.password as string | undefined,

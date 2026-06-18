@@ -1,3 +1,7 @@
+// CHECKPOINT: PRD-06 FR-6.1.1 REST API client used by the MCP server.
+// CHECKPOINT: PRD-06 FR-6.3.1 Structured error responses from API are normalized into { success, error, message }.
+// CHECKPOINT: PRD-06 FR-6.4.1 Rate limits are enforced by the REST API per API key; the MCP server passes them through.
+
 import { config } from "./config.js";
 
 interface APIResponse<T = unknown> {
@@ -218,6 +222,13 @@ export class PurpleToadClient {
     text?: string;
     html?: string;
     thread_id?: string;
+    attachments?: Array<{
+      filename: string;
+      content: string;
+      content_type: string;
+      disposition?: string;
+      content_id?: string;
+    }>;
   }) {
     return this.request("POST", "/api/v1/outbound/send", params);
   }
@@ -269,6 +280,12 @@ export class PurpleToadClient {
 
   async getPlan() {
     return this.request("GET", "/api/v1/account/plan");
+  }
+
+  // ─── Webhooks ─────────────────────────────────────────────────────────────
+
+  async setWebhook(params: { url: string; events: string[] }) {
+    return this.request("POST", "/api/v1/webhooks", params);
   }
 
   // ─── Validation ───────────────────────────────────────────────────────────

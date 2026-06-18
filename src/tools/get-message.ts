@@ -1,3 +1,5 @@
+// CHECKPOINT: PRD-06 FR-6.2.4 Tool: get_message — gets full message details.
+
 import { client } from "../client.js";
 
 export const getMessageTool = {

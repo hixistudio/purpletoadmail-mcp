@@ -130,22 +130,24 @@ No extra backend work is required. The MCP server talks to the standard PurpleTo
 
 ## Tool Reference
 
-The server exposes **20 tools**.
+The server exposes **23 tools**.
 
 ### Email Operations
 
 | Tool | Description |
 |------|-------------|
 | `send_email` | Send an email from a PurpleToad Mail mailbox |
+| `reply_to_message` | Reply to a received email, preserving the thread |
 | `schedule_email` | Schedule an email for future delivery |
 | `cancel_scheduled_email` | Cancel a scheduled email before it sends |
 | `list_messages` | List received emails with filters (unread, since, from, thread) |
 | `get_message` | Get full message body and attachments |
 | `search_messages` | Full-text search across all inbound emails |
-| `mark_read` | Mark a message as read |
+| `mark_read` | Mark one or more messages as read |
 | `archive_message` | Archive a message to keep your inbox clean |
 | `list_outbound_messages` | List sent emails with delivery status |
 | `get_outbound_message` | Track a single email's delivery history |
+| `get_mailbox_status` | Unread count and quota usage for a mailbox |
 | `get_account` | Account profile, plan, and usage stats |
 
 ### Infrastructure Reference
@@ -166,6 +168,12 @@ The server exposes **20 tools**.
 | `create_mailbox` | Create a mailbox under a verified domain. The password is shown once — change it immediately. Requires `manage` scope. |
 | `update_mailbox_password` | Update a mailbox password. Use with caution. Requires `manage` scope. |
 | `create_alias` | Create an email alias that forwards to target mailboxes. Requires `manage` scope. |
+
+### Webhooks
+
+| Tool | Description |
+|------|-------------|
+| `set_webhook` | Configure a webhook endpoint for push delivery of inbound email events. Requires `manage` scope. |
 
 ## Example Workflows
 

@@ -1,3 +1,5 @@
+// CHECKPOINT: PRD-06 FR-6.1.3 Server initialization configuration: api_key, base_url, timeout, transport.
+
 import { readFileSync, existsSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";

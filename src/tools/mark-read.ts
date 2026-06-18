@@ -1,46 +1,63 @@
+// CHECKPOINT: PRD-06 FR-6.2.7 Tool: mark_read — marks one or more messages as read.
+
 import { client } from "../client.js";
 
 export const markReadTool = {
   name: "mark_read",
-  description: `Mark an email as read. Returns the message ID and read status.
+  description: `Mark one or more received emails as read.
 
-Example: mark_read(message_id="msg_uuid")`,
+Example: mark_read(message_ids=["msg_uuid_1", "msg_uuid_2"])`,
   inputSchema: {
     type: "object" as const,
     properties: {
-      message_id: {
-        type: "string",
-        description: "The message ID to mark as read",
+      message_ids: {
+        type: "array",
+        items: { type: "string" },
+        description: "Array of message IDs to mark as read",
       },
     },
-    required: ["message_id"],
+    required: ["message_ids"],
   },
 
   async handler(args: Record<string, unknown>) {
-    const messageId = args.message_id as string;
-    if (!messageId) {
+    const messageIds = args.message_ids as string[];
+    if (!Array.isArray(messageIds) || messageIds.length === 0) {
       return {
         success: false,
         error: "INVALID_ARGUMENT",
-        message: "'message_id' is required.",
+        message: "'message_ids' is required and must be a non-empty array.",
       };
     }
 
-    const result = await client.markRead(messageId);
+    let marked = 0;
+    const errors: string[] = [];
 
-    if (!result.success) {
+    await Promise.all(
+      messageIds.map(async (messageId) => {
+        const result = await client.markRead(messageId);
+        if (result.success) {
+          marked += 1;
+        } else {
+          errors.push(`${messageId}: ${result.error?.message || "Failed"}`);
+        }
+      })
+    );
+
+    if (marked === 0) {
       return {
         success: false,
-        error: result.error?.code || "MARK_FAILED",
-        message: result.error?.message || "Failed to mark message as read",
+        error: "MARK_FAILED",
+        message: `Failed to mark messages as read. ${errors.join("; ")}`,
       };
     }
 
-    const data = result.data as Record<string, unknown>;
+    // Best-effort remaining unread count: query unread total for a representative mailbox
+    // if all messages belong to the same thread/mailbox. We keep it simple and return null.
     return {
       success: true,
-      message_id: messageId,
-      is_read: data.is_read ?? true,
+      marked_read: marked,
+      remaining_unread: null,
+      failed: errors.length > 0 ? errors : undefined,
     };
   },
 };

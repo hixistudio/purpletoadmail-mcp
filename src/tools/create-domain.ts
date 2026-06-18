@@ -1,3 +1,5 @@
+// CHECKPOINT: PRD-06 FR-6.2.1 Tool: create_domain — creates and verifies a new domain.
+
 import { client } from "../client.js";
 
 export const createDomainTool = {
@@ -91,6 +93,13 @@ Example: create_domain(domain="mycompany.com")`,
       domain_id: data.id,
       domain: data.name || domain,
       status: data.status,
+      dns_records: {
+        mx: { type: mx.type || "MX", host: mx.host || "@", value: mx.value || "mx.purpletoadmail.com", priority: mx.priority || "10", ttl: mx.ttl || "3600" },
+        spf: { type: spf.type || "TXT", host: spf.host || "@", value: spf.value || "", ttl: spf.ttl || "3600" },
+        dkim: { type: dkim.type || "TXT", host: dkim.host || "", value: dkim.value || "", ttl: dkim.ttl || "3600" },
+        dmarc: { type: dmarc.type || "TXT", host: dmarc.host || "_dmarc", value: dmarc.value || "", ttl: dmarc.ttl || "3600" },
+      },
+      instructions: "Add these 4 DNS records at your DNS provider, then the domain will be verified automatically within a few minutes.",
       dns_records_table: `| Type  | Host (Name)                  | Value / Points to                                     | Priority  | TTL    |
 |-------|------------------------------|-------------------------------------------------------|-----------|--------|
 ${dnsTable}`,

@@ -1,3 +1,8 @@
+// CHECKPOINT: PRD-06 FR-6.1.1 MCP server is a standalone process connecting to the PurpleToad REST API.
+// CHECKPOINT: PRD-06 FR-6.1.2 Supports stdio and SSE transports.
+// CHECKPOINT: PRD-06 FR-6.1.4 Server lifecycle: validate API key, announce capabilities, request/response loop.
+// CHECKPOINT: PRD-06 FR-6.1.5 MCP protocol compliance: initialize, tools/list, tools/call, notifications/initialized, protocol version 2024-11-05.
+
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {

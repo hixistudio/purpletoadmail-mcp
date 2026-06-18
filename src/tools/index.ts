@@ -1,9 +1,12 @@
+// CHECKPOINT: PRD-06 FR-6.1.5 tools/list and tools/call expose all PurpleToad tools to MCP clients.
+
 import { createDomainTool } from "./create-domain.js";
 import { listDomainsTool } from "./list-domains.js";
 import { getDomainTool } from "./get-domain.js";
 import { createMailboxTool } from "./create-mailbox.js";
 import { listMailboxesTool } from "./list-mailboxes.js";
 import { getMailboxTool } from "./get-mailbox.js";
+import { getMailboxStatusTool } from "./get-mailbox-status.js";
 import { updateMailboxPasswordTool } from "./update-mailbox-password.js";
 import { createAliasTool } from "./create-alias.js";
 import { listAliasesTool } from "./list-aliases.js";
@@ -13,10 +16,12 @@ import { searchMessagesTool } from "./search-messages.js";
 import { markReadTool } from "./mark-read.js";
 import { archiveMessageTool } from "./archive-message.js";
 import { sendEmailTool } from "./send-email.js";
+import { replyToMessageTool } from "./reply-to-message.js";
 import { scheduleEmailTool } from "./schedule-email.js";
 import { cancelScheduledTool } from "./cancel-scheduled.js";
 import { listOutboundTool } from "./list-outbound.js";
 import { getOutboundTool } from "./get-outbound.js";
+import { setWebhookTool } from "./set-webhook.js";
 import { getAccountTool } from "./get-account.js";
 
 export interface ToolDef {
@@ -40,6 +45,7 @@ const rawTools: ToolDef[] = [
   getDomainTool as ToolDef,
   listMailboxesTool as ToolDef,
   getMailboxTool as ToolDef,
+  getMailboxStatusTool as ToolDef,
   listAliasesTool as ToolDef,
 
   // ─── Core Email Operations ────────────────────────────────────────────────
@@ -49,10 +55,12 @@ const rawTools: ToolDef[] = [
   markReadTool as ToolDef,
   archiveMessageTool as ToolDef,
   sendEmailTool as ToolDef,
+  replyToMessageTool as ToolDef,
   scheduleEmailTool as ToolDef,
   cancelScheduledTool as ToolDef,
   listOutboundTool as ToolDef,
   getOutboundTool as ToolDef,
+  setWebhookTool as ToolDef,
   getAccountTool as ToolDef,
 ];
 
