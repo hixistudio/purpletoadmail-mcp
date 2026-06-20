@@ -2,7 +2,11 @@
 // CHECKPOINT: PRD-06 FR-6.3.1 Structured error responses from API are normalized into { success, error, message }.
 // CHECKPOINT: PRD-06 FR-6.4.1 Rate limits are enforced by the REST API per API key; the MCP server passes them through.
 
+import { createRequire } from "node:module";
 import { config } from "./config.js";
+
+const require = createRequire(import.meta.url);
+const { version } = require("../package.json") as { version: string };
 
 interface APIResponse<T = unknown> {
   success: boolean;
@@ -36,7 +40,7 @@ export class PurpleToadClient {
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${this.apiKey}`,
-          "User-Agent": "purpletoadmail-mcp/1.1.0",
+          "User-Agent": `purpletoadmail-mcp/${version}`,
         },
         body: body ? JSON.stringify(body) : undefined,
         signal: controller.signal,

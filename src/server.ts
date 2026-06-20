@@ -10,9 +10,13 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { randomUUID } from "crypto";
+import { createRequire } from "node:module";
 import { config } from "./config.js";
 import { client } from "./client.js";
 import { tools } from "./tools/index.js";
+
+const require = createRequire(import.meta.url);
+const { version } = require("../package.json") as { version: string };
 
 async function validateApiKey(): Promise<boolean> {
   const result = await client.validateKey();
@@ -33,7 +37,7 @@ export async function startServer() {
   const server = new Server(
     {
       name: "purpletoadmail-mcp",
-      version: "1.1.0",
+      version,
     },
     {
       capabilities: {
