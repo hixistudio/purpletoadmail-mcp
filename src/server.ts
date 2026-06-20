@@ -32,7 +32,7 @@ export async function startServer() {
 
   const server = new Server(
     {
-      name: "purpletoad-mcp",
+      name: "purpletoadmail-mcp",
       version: "1.1.0",
     },
     {

@@ -18,7 +18,7 @@ Your agent can:
 
 Requires Node.js 18+.
 
-The client configs below run the server with `npx -y purpletoad-mcp`.
+The client configs below run the server with `npx -y purpletoadmail-mcp`.
 
 ## Quick Start
 
@@ -51,7 +51,7 @@ EOF
 
 ### 3. Connect to your AI client
 
-The examples below use `npx -y purpletoad-mcp`.
+The examples below use `npx -y purpletoadmail-mcp`.
 
 #### Claude Desktop
 
@@ -62,7 +62,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) o
   "mcpServers": {
     "purpletoad": {
       "command": "npx",
-      "args": ["-y", "purpletoad-mcp"],
+      "args": ["-y", "purpletoadmail-mcp"],
       "env": {
         "PURPLETOAD_API_KEY": "pt_live_your_key_here",
         "PURPLETOAD_DEFAULT_FROM": "agent@yourdomain.com"
@@ -81,7 +81,7 @@ Add to your MCP settings:
   "mcpServers": {
     "purpletoad": {
       "command": "npx",
-      "args": ["-y", "purpletoad-mcp"],
+      "args": ["-y", "purpletoadmail-mcp"],
       "env": {
         "PURPLETOAD_API_KEY": "pt_live_your_key_here"
       }
@@ -101,7 +101,7 @@ cat > ~/.kimi-code/mcp.json <<'EOF'
   "mcpServers": {
     "purpletoad": {
       "command": "npx",
-      "args": ["-y", "purpletoad-mcp"],
+      "args": ["-y", "purpletoadmail-mcp"],
       "env": {
         "PURPLETOAD_API_KEY": "pt_live_your_key_here",
         "PURPLETOAD_DEFAULT_FROM": "agent@yourdomain.com"

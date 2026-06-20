@@ -36,7 +36,7 @@ export class PurpleToadClient {
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${this.apiKey}`,
-          "User-Agent": "purpletoad-mcp/1.1.0",
+          "User-Agent": "purpletoadmail-mcp/1.1.0",
         },
         body: body ? JSON.stringify(body) : undefined,
         signal: controller.signal,

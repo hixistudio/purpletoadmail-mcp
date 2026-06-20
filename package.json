@@ -1,11 +1,11 @@
 {
-  "name": "purpletoad-mcp",
+  "name": "purpletoadmail-mcp",
   "version": "1.1.0",
   "description": "Model Context Protocol server for PurpleToad Mail — send, receive, search, and manage email from any AI agent",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "purpletoad-mcp": "dist/index.js"
+    "purpletoadmail-mcp": "dist/index.js"
   },
   "files": [
     "dist",
