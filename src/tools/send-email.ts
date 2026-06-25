@@ -6,7 +6,7 @@ import { validateEmailList, validateSubject } from "../lib/validation.js";
 
 export const sendEmailTool = {
   name: "send_email",
-  description: `Send an email from a PurpleToad-managed mailbox. Returns a message ID for tracking delivery status.
+  description: `Send an email from a PurpleToad Mail-managed mailbox. Returns a message ID for tracking delivery status.
 
 Example: send_email(from="agent@mycompany.com", to=["john@example.com"], subject="Hello", text="Hello from my agent!")`,
   inputSchema: {
@@ -14,7 +14,7 @@ Example: send_email(from="agent@mycompany.com", to=["john@example.com"], subject
     properties: {
       from: {
         type: "string",
-        description: "Sender email address (must be a PurpleToad mailbox). Uses PURPLETOAD_DEFAULT_FROM if omitted.",
+        description: "Sender email address (must be a PurpleToad Mail mailbox). Uses PURPLETOAD_DEFAULT_FROM if omitted.",
       },
       to: {
         type: "array",

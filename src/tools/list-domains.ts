@@ -2,7 +2,7 @@ import { client } from "../client.js";
 
 export const listDomainsTool = {
   name: "list_domains",
-  description: `List all domains on your PurpleToad account with DNS health and mailbox counts.
+  description: `List all domains on your PurpleToad Mail account with DNS health and mailbox counts.
 
 Example: list_domains()`,
   inputSchema: {

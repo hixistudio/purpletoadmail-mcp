@@ -57,7 +57,7 @@ function loadConfig(): Config {
 export const config = loadConfig();
 
 if (!config.apiKey) {
-  console.error("ERROR: PurpleToad API key required. Set PURPLETOAD_API_KEY env var.");
+  console.error("ERROR: PurpleToad Mail API key required. Set PURPLETOAD_API_KEY env var.");
   process.exit(1);
 }
 

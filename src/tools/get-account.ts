@@ -2,7 +2,7 @@ import { client } from "../client.js";
 
 export const getAccountTool = {
   name: "get_account",
-  description: `Get your PurpleToad account profile, current plan, and usage statistics (domains, mailboxes, emails sent, storage).
+  description: `Get your PurpleToad Mail account profile, current plan, and usage statistics (domains, mailboxes, emails sent, storage).
 
 Example: get_account()`,
   inputSchema: {

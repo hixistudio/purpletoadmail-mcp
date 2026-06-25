@@ -4,7 +4,7 @@ import { client } from "../client.js";
 
 export const createDomainTool = {
   name: "create_domain",
-  description: `Create a new email domain on PurpleToad. Returns the exact DNS records you must add at your domain registrar or DNS provider. After adding the records, domain verification happens automatically within a few minutes.
+  description: `Create a new email domain on PurpleToad Mail. Returns the exact DNS records you must add at your domain registrar or DNS provider. After adding the records, domain verification happens automatically within a few minutes.
 
 Requires 'manage' scope on your API key. If your key only has 'read' + 'send', create a separate key with 'manage' scope for domain setup, or use the dashboard at https://app.purpletoadmail.com.
 
@@ -123,7 +123,7 @@ function _getSuggestion(code?: string): string {
   const suggestions: Record<string, string> = {
     DOMAIN_LIMIT_EXCEEDED:
       "You have reached the maximum number of domains on your plan. Upgrade at https://app.purpletoadmail.com/upgrade",
-    DOMAIN_ALREADY_EXISTS: "This domain is already registered on PurpleToad.",
+    DOMAIN_ALREADY_EXISTS: "This domain is already registered on PurpleToad Mail.",
     INVALID_DOMAIN: "The domain name format is invalid. Use a valid domain like 'mycompany.com'.",
     RATE_LIMIT_EXCEEDED: "Too many requests. Wait a moment and retry.",
     INSUFFICIENT_SCOPE:

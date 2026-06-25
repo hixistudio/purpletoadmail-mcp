@@ -12,7 +12,7 @@ Example: schedule_email(from="agent@mycompany.com", to=["john@example.com"], sub
     properties: {
       from: {
         type: "string",
-        description: "Sender email address (must be a PurpleToad mailbox). Uses PURPLETOAD_DEFAULT_FROM if omitted.",
+        description: "Sender email address (must be a PurpleToad Mail mailbox). Uses PURPLETOAD_DEFAULT_FROM if omitted.",
       },
       to: {
         type: "array",

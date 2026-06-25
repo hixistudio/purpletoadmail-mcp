@@ -1,4 +1,4 @@
-// CHECKPOINT: PRD-06 FR-6.1.5 tools/list and tools/call expose all PurpleToad tools to MCP clients.
+// CHECKPOINT: PRD-06 FR-6.1.5 tools/list and tools/call expose all PurpleToad Mail tools to MCP clients.
 
 import { createDomainTool } from "./create-domain.js";
 import { listDomainsTool } from "./list-domains.js";

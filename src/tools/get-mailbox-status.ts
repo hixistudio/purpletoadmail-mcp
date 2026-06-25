@@ -5,7 +5,7 @@ import { isValidEmail } from "../lib/validation.js";
 
 export const getMailboxStatusTool = {
   name: "get_mailbox_status",
-  description: `Get unread count, total messages, and quota usage for a PurpleToad mailbox.
+  description: `Get unread count, total messages, and quota usage for a PurpleToad Mail mailbox.
 
 Example: get_mailbox_status(mailbox="agent@mycompany.com")`,
   inputSchema: {

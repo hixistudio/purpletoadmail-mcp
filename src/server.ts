@@ -1,4 +1,4 @@
-// CHECKPOINT: PRD-06 FR-6.1.1 MCP server is a standalone process connecting to the PurpleToad REST API.
+// CHECKPOINT: PRD-06 FR-6.1.1 MCP server is a standalone process connecting to the PurpleToad Mail REST API.
 // CHECKPOINT: PRD-06 FR-6.1.2 Supports stdio and SSE transports.
 // CHECKPOINT: PRD-06 FR-6.1.4 Server lifecycle: validate API key, announce capabilities, request/response loop.
 // CHECKPOINT: PRD-06 FR-6.1.5 MCP protocol compliance: initialize, tools/list, tools/call, notifications/initialized, protocol version 2024-11-05.
@@ -24,7 +24,7 @@ async function validateApiKey(): Promise<boolean> {
     console.error(`ERROR: API key validation failed: ${result.error?.message || "Unknown error"}`);
     return false;
   }
-  console.error("PurpleToad MCP API key validated successfully");
+  console.error("PurpleToad Mail MCP API key validated successfully");
   return true;
 }
 
@@ -111,7 +111,7 @@ export async function startServer() {
   let activeTransport: StdioServerTransport | { close: () => Promise<void> } | null = null;
 
   const shutdown = async (signal: string) => {
-    console.error(`PurpleToad MCP received ${signal}, shutting down...`);
+    console.error(`PurpleToad Mail MCP received ${signal}, shutting down...`);
     try {
       if (activeTransport) {
         await activeTransport.close();
@@ -180,12 +180,12 @@ export async function startServer() {
 
     const port = config.port || 3001;
     httpServer = app.listen(port, () => {
-      console.error(`PurpleToad MCP SSE server on port ${port}`);
+      console.error(`PurpleToad Mail MCP SSE server on port ${port}`);
     });
   } else {
     const transport = new StdioServerTransport();
     activeTransport = transport;
     await server.connect(transport);
-    console.error("PurpleToad MCP server started (stdio)");
+    console.error("PurpleToad Mail MCP server started (stdio)");
   }
 }

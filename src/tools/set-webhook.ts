@@ -6,7 +6,7 @@ const VALID_WEBHOOK_EVENTS = ["inbound_email", "delivery_status", "bounce", "com
 
 export const setWebhookTool = {
   name: "set_webhook",
-  description: `Configure a webhook endpoint for push delivery of PurpleToad events. The webhook will receive signed POST requests for each subscribed event type.
+  description: `Configure a webhook endpoint for push delivery of PurpleToad Mail events. The webhook will receive signed POST requests for each subscribed event type.
 
 Requires 'manage' scope on your API key.
 
@@ -16,7 +16,7 @@ Example: set_webhook(url="https://myagent.com/webhook", events=["inbound_email"]
     properties: {
       url: {
         type: "string",
-        description: "The HTTPS URL that PurpleToad will POST events to",
+        description: "The HTTPS URL that PurpleToad Mail will POST events to",
       },
       events: {
         type: "array",
