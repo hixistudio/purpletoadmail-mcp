@@ -36,6 +36,22 @@ Example: reply_to_message(original_message_id="msg_uuid", text="2pm works perfec
         description: "Additional BCC recipients (optional)",
         default: [],
       },
+      attachments: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            filename: { type: "string" },
+            content: { type: "string", description: "Base64-encoded file content" },
+            content_type: { type: "string" },
+            disposition: { type: "string", enum: ["attachment", "inline"], default: "attachment" },
+            content_id: { type: "string" },
+          },
+          required: ["filename", "content", "content_type"],
+        },
+        description: "Base64-encoded attachments (optional, max 10)",
+        default: [],
+      },
     },
     required: ["original_message_id", "text"],
   },
@@ -113,6 +129,24 @@ Example: reply_to_message(original_message_id="msg_uuid", text="2pm works perfec
     const cc = (args.cc as string[] | undefined) || [];
     const bcc = (args.bcc as string[] | undefined) || [];
 
+    const attachments = (args.attachments as Array<Record<string, unknown>> | undefined) || [];
+    if (attachments.length > 10) {
+      return {
+        success: false,
+        error: "INVALID_ARGUMENT",
+        message: "A maximum of 10 attachments is allowed per email.",
+      };
+    }
+
+    // Build reply threading headers from the original Message-ID when available.
+    const originalMessageHeader = (original.message_id_header as string) || "";
+    const replyHeaders: Record<string, string> | undefined = originalMessageHeader
+      ? {
+          "In-Reply-To": originalMessageHeader,
+          "References": originalMessageHeader,
+        }
+      : undefined;
+
     const result = await client.sendEmail({
       from_email: replyFrom,
       to: [originalSenderEmail],
@@ -122,6 +156,14 @@ Example: reply_to_message(original_message_id="msg_uuid", text="2pm works perfec
       text,
       html: args.html as string | undefined,
       thread_id: (original.thread_id as string) || undefined,
+      attachments: attachments.map((a) => ({
+        filename: String(a.filename),
+        content: String(a.content),
+        content_type: String(a.content_type),
+        disposition: (a.disposition as string) || "attachment",
+        content_id: a.content_id as string | undefined,
+      })),
+      headers: replyHeaders,
     });
 
     if (!result.success) {

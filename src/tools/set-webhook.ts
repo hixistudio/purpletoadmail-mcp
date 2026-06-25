@@ -2,7 +2,17 @@
 
 import { client } from "../client.js";
 
-const VALID_WEBHOOK_EVENTS = ["inbound_email", "delivery_status", "bounce", "complaint"];
+const VALID_WEBHOOK_EVENTS = [
+  "inbound_email",
+  "delivery_status",
+  "bounce",
+  "complaint",
+  "domain_verified",
+  "mailbox_created",
+  "migration_complete",
+  "rate_limit_warning",
+  "all",
+];
 
 export const setWebhookTool = {
   name: "set_webhook",
@@ -21,7 +31,7 @@ Example: set_webhook(url="https://myagent.com/webhook", events=["inbound_email"]
       events: {
         type: "array",
         items: { type: "string" },
-        description: "Event types to subscribe to: inbound_email, delivery_status, bounce, complaint",
+        description: "Event types to subscribe to: inbound_email, delivery_status, bounce, complaint, domain_verified, mailbox_created, migration_complete, rate_limit_warning, all",
       },
     },
     required: ["url", "events"],

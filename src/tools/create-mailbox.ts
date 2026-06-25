@@ -4,7 +4,7 @@ import { client } from "../client.js";
 
 export const createMailboxTool = {
   name: "create_mailbox",
-  description: `Create a new email mailbox under a domain on PurpleToad Mail. The auto-generated password is shown once and cannot be retrieved later — change it immediately via the dashboard or the update_mailbox_password tool.
+  description: `Create a new email mailbox under a domain on PurpleToad Mail. The auto-generated password is shown once and cannot be retrieved later — change it immediately via the dashboard.
 
 Requires an API key with 'manage' scope.
 
@@ -111,7 +111,7 @@ Example: create_mailbox(domain="mycompany.com", local_part="agent", display_name
       email: data.email,
       password: data.password,
       status: data.status,
-      important: "This password is shown once only. Change it immediately via the dashboard or update_mailbox_password.",
+      important: "This password is shown once only. Change it immediately via the dashboard.",
     };
   },
 };

@@ -7,7 +7,6 @@ import { createMailboxTool } from "./create-mailbox.js";
 import { listMailboxesTool } from "./list-mailboxes.js";
 import { getMailboxTool } from "./get-mailbox.js";
 import { getMailboxStatusTool } from "./get-mailbox-status.js";
-import { updateMailboxPasswordTool } from "./update-mailbox-password.js";
 import { createAliasTool } from "./create-alias.js";
 import { listAliasesTool } from "./list-aliases.js";
 import { listMessagesTool } from "./list-messages.js";
@@ -37,7 +36,6 @@ const rawTools: ToolDef[] = [
 
   // ─── Infrastructure Management ────────────────────────────────────────────
   createMailboxTool as ToolDef,
-  updateMailboxPasswordTool as ToolDef,
   createAliasTool as ToolDef,
 
   // ─── Read-Only Reference ──────────────────────────────────────────────────

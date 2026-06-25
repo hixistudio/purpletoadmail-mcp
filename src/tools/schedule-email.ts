@@ -47,6 +47,22 @@ Example: schedule_email(from="agent@mycompany.com", to=["john@example.com"], sub
         type: "string",
         description: "ISO 8601 timestamp when to send the email",
       },
+      attachments: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            filename: { type: "string" },
+            content: { type: "string", description: "Base64-encoded file content" },
+            content_type: { type: "string" },
+            disposition: { type: "string", enum: ["attachment", "inline"], default: "attachment" },
+            content_id: { type: "string" },
+          },
+          required: ["filename", "content", "content_type"],
+        },
+        description: "Base64-encoded attachments (optional, max 10)",
+        default: [],
+      },
     },
     required: ["to", "subject", "send_at"],
   },
@@ -97,6 +113,15 @@ Example: schedule_email(from="agent@mycompany.com", to=["john@example.com"], sub
       };
     }
 
+    const attachments = (args.attachments as Array<Record<string, unknown>> | undefined) || [];
+    if (attachments.length > 10) {
+      return {
+        success: false,
+        error: "INVALID_ARGUMENT",
+        message: "A maximum of 10 attachments is allowed per email.",
+      };
+    }
+
     const result = await client.scheduleEmail({
       from_email: from,
       to: toValidation.emails,
@@ -106,6 +131,13 @@ Example: schedule_email(from="agent@mycompany.com", to=["john@example.com"], sub
       text: args.text as string | undefined,
       html: args.html as string | undefined,
       send_at: sendAt,
+      attachments: attachments.map((a) => ({
+        filename: String(a.filename),
+        content: String(a.content),
+        content_type: String(a.content_type),
+        disposition: (a.disposition as string) || "attachment",
+        content_id: a.content_id as string | undefined,
+      })),
     });
 
     if (!result.success) {

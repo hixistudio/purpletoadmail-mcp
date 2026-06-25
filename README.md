@@ -55,12 +55,16 @@ The examples below use `npx -y purpletoadmail-mcp`.
 
 #### Claude Desktop
 
-Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+Edit your Claude Desktop config file:
+
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+- Linux: `~/.config/Claude/claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
-    "purpletoad": {
+    "purpletoadmail": {
       "command": "npx",
       "args": ["-y", "purpletoadmail-mcp"],
       "env": {
@@ -72,14 +76,32 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) o
 }
 ```
 
-#### Cursor / Windsurf
+#### Cursor
 
-Add to your MCP settings:
+Add to `~/.cursor/mcp.json`:
 
 ```json
 {
   "mcpServers": {
-    "purpletoad": {
+    "purpletoadmail": {
+      "command": "npx",
+      "args": ["-y", "purpletoadmail-mcp"],
+      "env": {
+        "PURPLETOAD_API_KEY": "pt_live_your_key_here"
+      }
+    }
+  }
+}
+```
+
+#### Windsurf
+
+Add to `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "purpletoadmail": {
       "command": "npx",
       "args": ["-y", "purpletoadmail-mcp"],
       "env": {
@@ -92,14 +114,14 @@ Add to your MCP settings:
 
 #### Kimi Code CLI
 
-Kimi Code supports MCP via `~/.kimi-code/mcp.json` (or `~/.kimi/mcp.json` on older versions):
+Kimi Code supports MCP via `~/.kimi-code/mcp.json` (or a project-local `.kimi-code/mcp.json`):
 
 ```bash
 mkdir -p ~/.kimi-code
 cat > ~/.kimi-code/mcp.json <<'EOF'
 {
   "mcpServers": {
-    "purpletoad": {
+    "purpletoadmail": {
       "command": "npx",
       "args": ["-y", "purpletoadmail-mcp"],
       "env": {
@@ -112,17 +134,35 @@ cat > ~/.kimi-code/mcp.json <<'EOF'
 EOF
 ```
 
-Then run `kimi` in a new session, or use `/mcp-config` inside Kimi Code to verify the connection.
+Then run `kimi mcp list` to verify the connection, or use `/mcp-config` inside Kimi Code.
 
 #### SSE (Remote / Self-hosted)
+
+Start the SSE server:
 
 ```bash
 PURPLETOAD_TRANSPORT=sse PURPLETOAD_PORT=3001 node dist/index.js
 ```
 
-Then configure your client with `http://localhost:3001/sse`.
+Then configure your client with `http://localhost:3001/sse`. If your MCP client supports headers, include the API key as a Bearer token:
+
+```json
+{
+  "mcpServers": {
+    "purpletoadmail": {
+      "transport": "sse",
+      "url": "http://localhost:3001/sse",
+      "headers": {
+        "Authorization": "Bearer pt_live_your_key_here"
+      }
+    }
+  }
+}
+```
 
 > **Security note:** The SSE endpoint requires `Authorization: Bearer <PURPLETOAD_API_KEY>` on the initial `/sse` request. Without a valid token, the connection is rejected with HTTP 401.
+
+> **Restart required:** Most clients (Claude Desktop, Cursor, Windsurf, etc.) only load MCP servers on startup. Fully quit and reopen the client after editing the config.
 
 ### Backend requirements
 
@@ -130,15 +170,15 @@ No extra backend work is required. The MCP server talks to the standard PurpleTo
 
 ## Tool Reference
 
-The server exposes **23 tools**.
+The server exposes **22 tools**.
 
 ### Email Operations
 
 | Tool | Description |
 |------|-------------|
-| `send_email` | Send an email from a PurpleToad Mail mailbox |
-| `reply_to_message` | Reply to a received email, preserving the thread |
-| `schedule_email` | Schedule an email for future delivery |
+| `send_email` | Send an email from a PurpleToad Mail mailbox (supports attachments) |
+| `reply_to_message` | Reply to a received email, preserving the thread (supports attachments) |
+| `schedule_email` | Schedule an email for future delivery (supports attachments) |
 | `cancel_scheduled_email` | Cancel a scheduled email before it sends |
 | `list_messages` | List received emails with filters (unread, since, from, thread) |
 | `get_message` | Get full message body and attachments |
@@ -165,15 +205,14 @@ The server exposes **23 tools**.
 | Tool | Description |
 |------|-------------|
 | `create_domain` | Add a new domain and receive copy-paste DNS records. Requires `manage` scope. |
-| `create_mailbox` | Create a mailbox under a verified domain. The password is shown once — change it immediately. Requires `manage` scope. |
-| `update_mailbox_password` | Update a mailbox password. Use with caution. Requires `manage` scope. |
+| `create_mailbox` | Create a mailbox under a verified domain. The auto-generated password is shown once. Requires `manage` scope. |
 | `create_alias` | Create an email alias that forwards to target mailboxes. Requires `manage` scope. |
 
 ### Webhooks
 
 | Tool | Description |
 |------|-------------|
-| `set_webhook` | Configure a webhook endpoint for push delivery of inbound email events. Requires `manage` scope. |
+| `set_webhook` | Configure a webhook endpoint for push delivery of PurpleToad Mail events (`inbound_email`, `delivery_status`, `bounce`, `complaint`, `domain_verified`, `mailbox_created`, `migration_complete`, `rate_limit_warning`, or `all`). Requires `manage` scope. |
 
 ## Example Workflows
 

@@ -105,18 +105,6 @@ export class PurpleToadClient {
     return this.request("GET", `/api/v1/domains/${encodeURIComponent(domainId)}`);
   }
 
-  async verifyDomainDns(domainId: string) {
-    return this.request("POST", `/api/v1/domains/${encodeURIComponent(domainId)}/verify-dns`);
-  }
-
-  async deleteDomain(domainId: string) {
-    return this.request("DELETE", `/api/v1/domains/${encodeURIComponent(domainId)}`);
-  }
-
-  async restoreDomain(domainId: string) {
-    return this.request("POST", `/api/v1/domains/${encodeURIComponent(domainId)}/restore`);
-  }
-
   // ─── Mailboxes ────────────────────────────────────────────────────────────
 
   async createMailbox(params: {
@@ -138,20 +126,6 @@ export class PurpleToadClient {
     return this.request("GET", `/api/v1/mailboxes/${encodeURIComponent(mailboxId)}`);
   }
 
-  async deleteMailbox(mailboxId: string) {
-    return this.request("DELETE", `/api/v1/mailboxes/${encodeURIComponent(mailboxId)}`);
-  }
-
-  async restoreMailbox(mailboxId: string) {
-    return this.request("POST", `/api/v1/mailboxes/${encodeURIComponent(mailboxId)}/restore`);
-  }
-
-  async updateMailboxPassword(mailboxId: string, newPassword: string) {
-    return this.request("PUT", `/api/v1/mailboxes/${encodeURIComponent(mailboxId)}/password`, {
-      new_password: newPassword,
-    });
-  }
-
   // ─── Aliases ──────────────────────────────────────────────────────────────
 
   async listAliases(domainId?: string) {
@@ -161,10 +135,6 @@ export class PurpleToadClient {
 
   async createAlias(params: { domain_id: string; source: string; targets: string[]; enabled?: boolean }) {
     return this.request("POST", "/api/v1/aliases", params);
-  }
-
-  async deleteAlias(aliasId: string) {
-    return this.request("DELETE", `/api/v1/aliases/${encodeURIComponent(aliasId)}`);
   }
 
   // ─── Inbound Messages ─────────────────────────────────────────────────────
@@ -233,6 +203,7 @@ export class PurpleToadClient {
       disposition?: string;
       content_id?: string;
     }>;
+    headers?: Record<string, string>;
   }) {
     return this.request("POST", "/api/v1/outbound/send", params);
   }
@@ -264,6 +235,13 @@ export class PurpleToadClient {
     text?: string;
     html?: string;
     send_at: string;
+    attachments?: Array<{
+      filename: string;
+      content: string;
+      content_type: string;
+      disposition?: string;
+      content_id?: string;
+    }>;
   }) {
     return this.request("POST", "/api/v1/outbound/schedule", params);
   }
@@ -276,14 +254,6 @@ export class PurpleToadClient {
 
   async getAccount() {
     return this.request("GET", "/api/v1/account/me");
-  }
-
-  async getDashboard() {
-    return this.request("GET", "/api/v1/account/dashboard");
-  }
-
-  async getPlan() {
-    return this.request("GET", "/api/v1/account/plan");
   }
 
   // ─── Webhooks ─────────────────────────────────────────────────────────────
