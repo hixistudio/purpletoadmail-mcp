@@ -362,6 +362,22 @@ dashboard for current limits.
 
 The `send_email` and `schedule_email` tools return remaining quota in the response.
 
+## Releasing
+
+Releases are published to npm automatically via GitHub Actions when a semver tag is pushed.
+
+1. Update the version:
+   ```bash
+   npm version [patch|minor|major]
+   ```
+2. Push the resulting tag:
+   ```bash
+   git push origin main && git push origin vX.Y.Z
+   ```
+3. GitHub Actions will typecheck, build, and publish to npm.
+
+Make sure the repository has an `NPM_TOKEN` secret configured under **Settings → Secrets → Actions**.
+
 ## Support
 
 - **Dashboard**: [app.purpletoadmail.com](https://app.purpletoadmail.com)
