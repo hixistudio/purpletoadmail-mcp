@@ -260,8 +260,8 @@ The AI returns a formatted DNS table:
 ```
 | Type  | Host (Name)        | Value / Points to                            | Priority | TTL  |
 |-------|--------------------|----------------------------------------------|----------|------|
-| MX    | @                  | mx.purpletoadmail.com                        | 10       | 3600 |
-| TXT   | @                  | v=spf1 include:mx.purpletoadmail.com ~all    | —        | 3600 |
+| MX    | @                  | mail.purpletoadmail.com                      | 10       | 3600 |
+| TXT   | @                  | v=spf1 include:mail.purpletoadmail.com ~all  | —        | 3600 |
 | TXT   | pt2024._domainkey  | v=DKIM1; k=rsa; p=MIGfMA...                  | —        | 3600 |
 | TXT   | _dmarc             | v=DMARC1; p=quarantine; ...                  | —        | 3600 |
 ```
@@ -361,22 +361,6 @@ Rate limits, quotas, and attachment size vary by plan. Check your account
 dashboard for current limits.
 
 The `send_email` and `schedule_email` tools return remaining quota in the response.
-
-## Releasing
-
-Releases are published to npm automatically via GitHub Actions when a semver tag is pushed.
-
-1. Update the version:
-   ```bash
-   npm version [patch|minor|major]
-   ```
-2. Push the resulting tag:
-   ```bash
-   git push origin main && git push origin vX.Y.Z
-   ```
-3. GitHub Actions will typecheck, build, and publish to npm.
-
-Make sure the repository has an `NPM_TOKEN` secret configured under **Settings → Secrets → Actions**.
 
 ## Support
 
