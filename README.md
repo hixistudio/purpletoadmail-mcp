@@ -380,6 +380,7 @@ Make sure the repository has an `NPM_TOKEN` secret configured under **Settings â
 
 ## Support
 
+- **Website**: [purpletoadmail.com](https://purpletoadmail.com)
 - **Dashboard**: [app.purpletoadmail.com](https://app.purpletoadmail.com)
 - **Support**: hello@purpletoadmail.com
 
