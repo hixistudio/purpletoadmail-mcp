@@ -27,6 +27,14 @@
     "@types/node": "^22.0.0",
     "typescript": "^5.6.0"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hixistudio/purpletoadmail-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hixistudio/purpletoadmail-mcp/issues"
+  },
+  "homepage": "https://github.com/hixistudio/purpletoadmail-mcp#readme",
   "engines": {
     "node": ">=18"
   }
