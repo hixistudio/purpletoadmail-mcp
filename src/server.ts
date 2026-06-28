@@ -9,14 +9,17 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import { createRequire } from "node:module";
 import { config } from "./config.js";
 import { client } from "./client.js";
 import { tools } from "./tools/index.js";
+import { getAnalytics, captureToolCall, shutdownAnalytics } from "./analytics.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
+
+const distinctId = createHash("sha256").update(config.apiKey).digest("hex");
 
 async function validateApiKey(): Promise<boolean> {
   const result = await client.validateKey();
@@ -33,6 +36,12 @@ export async function startServer() {
   if (!valid) {
     process.exit(1);
   }
+
+  getAnalytics().capture({
+    distinctId,
+    event: "mcp_server_started",
+    properties: { transport: config.transport, version },
+  });
 
   const server = new Server(
     {
@@ -62,6 +71,7 @@ export async function startServer() {
     const tool = tools[name];
 
     if (!tool) {
+      captureToolCall(distinctId, name, { success: false, error: "TOOL_NOT_FOUND" }, config.transport);
       return {
         content: [
           {
@@ -81,6 +91,12 @@ export async function startServer() {
       const result = await tool.handler(args || {});
       const resultObj = result as Record<string, unknown>;
       const isError = resultObj.success === false;
+      captureToolCall(
+        distinctId,
+        name,
+        { success: !isError, error: isError ? String(resultObj.error || "UNKNOWN_ERROR") : undefined },
+        config.transport
+      );
       return {
         content: [
           {
@@ -91,6 +107,12 @@ export async function startServer() {
         isError,
       };
     } catch (error) {
+      captureToolCall(
+        distinctId,
+        name,
+        { success: false, error: "INTERNAL_ERROR" },
+        config.transport
+      );
       return {
         content: [
           {
@@ -120,6 +142,7 @@ export async function startServer() {
       if (httpServer) {
         httpServer.close();
       }
+      await shutdownAnalytics();
     } catch {
       // ignore cleanup errors
     }
