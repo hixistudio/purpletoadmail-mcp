@@ -20,6 +20,12 @@ Requires Node.js 18+.
 
 The client configs below run the server with `npx -y purpletoadmail-mcp`.
 
+> **Recommended:** Install the companion skill so your AI agent knows when to use PurpleToad Mail and how to call the tools correctly:
+>
+> ```bash
+> npx skills add hixistudio/purpletoadmail-skill
+> ```
+
 ## Quick Start
 
 ### 1. Get an API Key
