@@ -32,6 +32,9 @@ Example: get_outbound_message(message_id="msg_uuid")`,
       return {
         success: false,
         error: result.error?.code || "NOT_FOUND",
+        details: result.error?.details,
+        http_status: result.error?.http_status,
+        retry_after: result.error?.retry_after,
         message: result.error?.message || "Message not found",
         suggestion: "Use list_outbound_messages to find valid message IDs.",
       };

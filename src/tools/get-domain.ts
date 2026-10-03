@@ -32,6 +32,9 @@ Example: get_domain(domain_id="uuid")`,
       return {
         success: false,
         error: result.error?.code || "NOT_FOUND",
+        details: result.error?.details,
+        http_status: result.error?.http_status,
+        retry_after: result.error?.retry_after,
         message: result.error?.message || "Domain not found",
         suggestion: "Use list_domains to see available domain IDs.",
       };

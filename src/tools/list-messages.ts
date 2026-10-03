@@ -10,6 +10,8 @@ Example: list_messages(mailbox="agent@mycompany.com", unread_only=true, limit=20
   inputSchema: {
     type: "object" as const,
     properties: {
+      page: { type: "integer", minimum: 1, default: 1 },
+      per_page: { type: "integer", minimum: 1, maximum: 100, default: 20 },
       mailbox: {
         type: "string",
         description: "Filter by mailbox address (optional)",
@@ -46,7 +48,8 @@ Example: list_messages(mailbox="agent@mycompany.com", unread_only=true, limit=20
       unread_only: args.unread_only as boolean | undefined,
       from: args.from as string | undefined,
       since: args.since as string | undefined,
-      limit: args.limit as number | undefined,
+      limit: (args.per_page ?? args.limit ?? 20) as number,
+      page: args.page as number | undefined,
       thread_id: args.thread_id as string | undefined,
     });
 
@@ -54,6 +57,9 @@ Example: list_messages(mailbox="agent@mycompany.com", unread_only=true, limit=20
       return {
         success: false,
         error: result.error?.code || "LIST_FAILED",
+        details: result.error?.details,
+        http_status: result.error?.http_status,
+        retry_after: result.error?.retry_after,
         message: result.error?.message || "Failed to list messages",
       };
     }
@@ -69,6 +75,7 @@ Example: list_messages(mailbox="agent@mycompany.com", unread_only=true, limit=20
       mailbox: args.mailbox as string | undefined,
       from: args.from as string | undefined,
       thread_id: args.thread_id as string | undefined,
+      since: args.since as string | undefined,
       unread_only: true,
       limit: 1,
     });
@@ -96,7 +103,8 @@ Example: list_messages(mailbox="agent@mycompany.com", unread_only=true, limit=20
       total,
       unread_count: unreadCount,
       page: pagination.page || 1,
-      per_page: pagination.per_page || 20,
+      per_page: pagination.per_page ?? args.per_page ?? args.limit ?? 20,
+      total_pages: pagination.total_pages ?? 1,
     };
   },
 };

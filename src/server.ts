@@ -1,191 +1,186 @@
-// CHECKPOINT: PRD-06 FR-6.1.1 MCP server is a standalone process connecting to the PurpleToad Mail REST API.
-// CHECKPOINT: PRD-06 FR-6.1.2 Supports stdio and SSE transports.
-// CHECKPOINT: PRD-06 FR-6.1.4 Server lifecycle: validate API key, announce capabilities, request/response loop.
-// CHECKPOINT: PRD-06 FR-6.1.5 MCP protocol compliance: initialize, tools/list, tools/call, notifications/initialized, protocol version 2024-11-05.
-
+// CHECKPOINT: PRD-06 FR-6.1.1 / FR-6.1.4 Standalone REST client with API-key validation.
+// CHECKPOINT: PRD-06 FR-6.1.2 / FR-6.1.5 stdio and optional legacy SSE protocol lifecycle.
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  type CallToolResult,
+  type Tool,
 } from "@modelcontextprotocol/sdk/types.js";
-import { randomUUID } from "crypto";
 import { createRequire } from "node:module";
+import { timingSafeEqual } from "node:crypto";
 import { config } from "./config.js";
 import { client } from "./client.js";
 import { tools } from "./tools/index.js";
-
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
 
-async function validateApiKey(): Promise<boolean> {
-  const result = await client.validateKey();
-  if (!result.success) {
-    console.error(`ERROR: API key validation failed: ${result.error?.message || "Unknown error"}`);
-    return false;
-  }
-  console.error("PurpleToad Mail MCP API key validated successfully");
-  return true;
+function toolResult(result: Record<string, unknown>): CallToolResult {
+  // CHECKPOINT: PRD-06 FR-6.3.1 Structured JSON and legacy text content carry identical results.
+  const clean = JSON.parse(JSON.stringify(result)) as Record<string, unknown>;
+  return {
+    content: [{ type: "text", text: JSON.stringify(clean, null, 2) }],
+    structuredContent: clean,
+    isError: clean.success === false,
+  };
+}
+
+export function createServer(): Server {
+  const server = new Server(
+    { name: "purpletoadmail-mcp", version },
+    { capabilities: { tools: { listChanged: false } } },
+  );
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: Object.values(tools).map(
+      ({ name, description, inputSchema, outputSchema, annotations }) => ({
+        name,
+        description,
+        inputSchema,
+        outputSchema,
+        annotations,
+      }),
+    ) as Tool[],
+  }));
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const tool = tools[request.params.name];
+    if (!tool)
+      return toolResult({
+        success: false,
+        error: "TOOL_NOT_FOUND",
+        message: "Requested tool is not available",
+      });
+    try {
+      return toolResult(
+        (await tool.handler(request.params.arguments || {})) as Record<
+          string,
+          unknown
+        >,
+      );
+    } catch {
+      // Never echo arbitrary exception text, which could contain secrets or API response bodies.
+      return toolResult({
+        success: false,
+        error: "INTERNAL_ERROR",
+        message:
+          "The tool could not complete. Check configuration and API availability.",
+      });
+    }
+  });
+  return server;
 }
 
 export async function startServer() {
-  const valid = await validateApiKey();
-  if (!valid) {
-    process.exit(1);
-  }
-
-  const server = new Server(
-    {
-      name: "purpletoadmail-mcp",
-      version,
-    },
-    {
-      capabilities: {
-        tools: {
-          listChanged: false,
-        },
-      },
-    }
-  );
-
-  server.setRequestHandler(ListToolsRequestSchema, async () => {
-    const toolList = Object.values(tools).map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      inputSchema: tool.inputSchema as { type: "object"; properties?: object; [k: string]: unknown },
-    }));
-    return { tools: toolList };
-  });
-
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const { name, arguments: args } = request.params;
-    const tool = tools[name];
-
-    if (!tool) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              success: false,
-              error: "TOOL_NOT_FOUND",
-              message: `Tool '${name}' not found.`,
-            }),
-          },
-        ],
-        isError: true,
-      };
-    }
-
-    try {
-      const result = await tool.handler(args || {});
-      const resultObj = result as Record<string, unknown>;
-      const isError = resultObj.success === false;
-      return {
-        content: [
-          {
-            type: "text",
-            text: typeof result === "string" ? result : JSON.stringify(result, null, 2),
-          },
-        ],
-        isError,
-      };
-    } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              success: false,
-              error: "INTERNAL_ERROR",
-              message: error instanceof Error ? error.message : "Unknown error",
-            }),
-          },
-        ],
-        isError: true,
-      };
-    }
-  });
-
-  let httpServer: import("http").Server | null = null;
-  let activeTransport: StdioServerTransport | { close: () => Promise<void> } | null = null;
-
-  const shutdown = async (signal: string) => {
-    console.error(`PurpleToad Mail MCP received ${signal}, shutting down...`);
-    try {
-      if (activeTransport) {
-        await activeTransport.close();
-      }
-      await server.close();
-      if (httpServer) {
-        httpServer.close();
-      }
-    } catch {
-      // ignore cleanup errors
-    }
+  const validation = await client.validateKey();
+  if (!validation.success)
+    throw new Error(
+      `API key validation failed (${validation.error?.code || "UNKNOWN"}). Check your key, scopes, and API URL.`,
+    );
+  if ((validation.data as Record<string, unknown> | undefined)?.limited_scope)
+    console.error(
+      "API key authenticated with send-only scope; reading and replying require read scope.",
+    );
+  let httpServer: import("node:http").Server | undefined;
+  const servers = new Set<Server>();
+  const shutdown = async () => {
+    httpServer?.close();
+    await Promise.allSettled([...servers].map((server) => server.close()));
+    httpServer?.closeAllConnections();
     process.exit(0);
   };
-
-  process.on("SIGTERM", () => shutdown("SIGTERM"));
-  process.on("SIGINT", () => shutdown("SIGINT"));
-
-  if (config.transport === "sse") {
-    const express = await import("express");
-    const { SSEServerTransport } = await import("@modelcontextprotocol/sdk/server/sse.js");
-    const app = express.default();
-
-    const transports: Map<string, InstanceType<typeof SSEServerTransport>> = new Map();
-
-    const validateBearer = (req: import("express").Request, res: import("express").Response, next: import("express").NextFunction) => {
-      const auth = req.headers.authorization || "";
-      const match = auth.match(/^Bearer\s+(.+)$/);
-      if (!match || match[1] !== config.apiKey) {
-        res.status(401).json({ error: "Unauthorized", message: "Invalid or missing Bearer token." });
-        return;
-      }
-      next();
-    };
-
-    app.get("/sse", validateBearer, async (_req, res) => {
-      const transport = new SSEServerTransport("/message", res);
-      const sessionId = randomUUID();
-      transports.set(sessionId, transport);
-      activeTransport = transport;
-
-      await server.connect(transport);
-
-      res.on("close", () => {
-        transports.delete(sessionId);
-        if (activeTransport === transport) {
-          activeTransport = null;
-        }
-      });
-    });
-
-    app.post("/message", async (req, res) => {
-      const sessionId = req.query.sessionId as string;
-      if (!sessionId) {
-        res.status(400).end("Missing sessionId");
-        return;
-      }
-
-      const transport = transports.get(sessionId);
-      if (!transport) {
-        res.status(404).end("Session not found");
-        return;
-      }
-
-      await transport.handlePostMessage(req, res);
-    });
-
-    const port = config.port || 3001;
-    httpServer = app.listen(port, () => {
-      console.error(`PurpleToad Mail MCP SSE server on port ${port}`);
-    });
-  } else {
-    const transport = new StdioServerTransport();
-    activeTransport = transport;
-    await server.connect(transport);
-    console.error("PurpleToad Mail MCP server started (stdio)");
+  process.once("SIGTERM", shutdown);
+  process.once("SIGINT", shutdown);
+  if (config.transport === "stdio") {
+    const server = createServer();
+    servers.add(server);
+    await server.connect(new StdioServerTransport());
+    console.error("PurpleToad Mail MCP started (stdio)");
+    return;
   }
+  const { default: express } = await import("express");
+  const { SSEServerTransport } = await import(
+    "@modelcontextprotocol/sdk/server/sse.js"
+  );
+  const app = express();
+  const sessions = new Map<
+    string,
+    { transport: InstanceType<typeof SSEServerTransport>; server: Server }
+  >();
+  // CHECKPOINT: PRD-06 FR-6.1.2 Bearer authentication on both SSE legs; loopback-only legacy compatibility.
+  app.use((req, res, next) => {
+    const host = req.headers.host;
+    if (
+      ![`127.0.0.1:${config.port}`, `localhost:${config.port}`].includes(
+        host || "",
+      ) ||
+      req.headers.origin
+    ) {
+      res.status(403).json({ error: "Forbidden host or origin" });
+      return;
+    }
+    const token = req.headers.authorization?.match(/^Bearer\s+(.+)$/)?.[1];
+    if (
+      !token ||
+      Buffer.byteLength(token) !== Buffer.byteLength(config.apiKey) ||
+      !timingSafeEqual(Buffer.from(token), Buffer.from(config.apiKey))
+    ) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+    next();
+  });
+  app.get("/sse", async (_req, res) => {
+    if (sessions.size >= 32) {
+      res.status(503).json({ error: "Too many local sessions" });
+      return;
+    }
+    const transport = new SSEServerTransport("/message", res, {
+      enableDnsRebindingProtection: true,
+      allowedHosts: [`127.0.0.1:${config.port}`, `localhost:${config.port}`],
+    });
+    const server = createServer();
+    sessions.set(transport.sessionId, { transport, server });
+    servers.add(server);
+    res.on("close", () => {
+      sessions.delete(transport.sessionId);
+      servers.delete(server);
+      void server.close().catch(() => undefined);
+    });
+    try {
+      await server.connect(transport);
+    } catch {
+      sessions.delete(transport.sessionId);
+      servers.delete(server);
+      await server.close();
+      if (!res.headersSent) res.status(500).end();
+    }
+  });
+  app.post("/message", async (req, res) => {
+    const sessionId = req.query.sessionId;
+    if (typeof sessionId !== "string") {
+      res.status(400).end("Missing sessionId");
+      return;
+    }
+    const session = sessions.get(sessionId);
+    if (!session) {
+      res.status(404).end("Session not found");
+      return;
+    }
+    try {
+      await session.transport.handlePostMessage(req, res);
+    } catch {
+      if (!res.headersSent) res.status(400).end("Invalid MCP message");
+    }
+  });
+  httpServer = await new Promise<import("node:http").Server>(
+    (resolve, reject) => {
+      const listener = app.listen(config.port, "127.0.0.1", () =>
+        resolve(listener),
+      );
+      listener.once("error", reject);
+    },
+  );
+  console.error(
+    `PurpleToad Mail MCP legacy SSE listening on 127.0.0.1:${config.port}`,
+  );
 }

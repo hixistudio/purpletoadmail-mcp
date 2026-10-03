@@ -34,7 +34,7 @@ Example: create_mailbox(domain="mycompany.com", local_part="agent", display_name
       },
       quota_mb: {
         type: "number",
-        description: "Storage quota in MB (optional, default 100)",
+        description: "Storage quota in MB (optional; API default and plan limits apply)",
       },
     },
     required: ["local_part"],
@@ -62,29 +62,19 @@ Example: create_mailbox(domain="mycompany.com", local_part="agent", display_name
     }
 
     if (!domainId && domainName) {
-      const domainsResult = await client.listDomains();
+      const domainsResult = await client.findResource("domains", "name", domainName);
       if (!domainsResult.success) {
         return {
           success: false,
           error: domainsResult.error?.code || "LIST_FAILED",
+        details: domainsResult.error?.details,
+        http_status: domainsResult.error?.http_status,
+        retry_after: domainsResult.error?.retry_after,
           message: domainsResult.error?.message || "Failed to list domains",
         };
       }
 
-      const data = domainsResult.data as Record<string, unknown>;
-      const domains = (data.domains || []) as Array<Record<string, unknown>>;
-      const match = domains.find(
-        (d) => d.name === domainName || d.domain === domainName
-      );
-      if (!match) {
-        return {
-          success: false,
-          error: "DOMAIN_NOT_FOUND",
-          message: `Domain '${domainName}' not found.`,
-          suggestion: "Use list_domains to see available domains, or create the domain first with create_domain.",
-        };
-      }
-      domainId = String(match.id);
+      domainId = String(domainsResult.data?.id);
     }
 
     const result = await client.createMailbox({
@@ -99,6 +89,9 @@ Example: create_mailbox(domain="mycompany.com", local_part="agent", display_name
       return {
         success: false,
         error: result.error?.code || "CREATE_FAILED",
+        details: result.error?.details,
+        http_status: result.error?.http_status,
+        retry_after: result.error?.retry_after,
         message: result.error?.message || "Failed to create mailbox",
         suggestion: _getSuggestion(result.error?.code),
       };

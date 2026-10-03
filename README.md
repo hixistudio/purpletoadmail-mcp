@@ -1,379 +1,211 @@
-# PurpleToad Mail MCP Server
+# PurpleToad Mail MCP
 
-> Model Context Protocol server for PurpleToad Mail. Your AI agent sends, receives, searches, and tracks email.
+Connect an AI assistant to your PurpleToad Mail account to send and schedule email, read and search your inbox, track delivery, and set up domains, mailboxes, aliases, and webhooks.
 
-## What is this?
+This is the **local npm package**. Your MCP client starts it on your computer over stdio, and it calls the PurpleToad Mail REST API using your API key. The separately deployed hosted MCP service has its own connection and OAuth setup.
 
-The **PurpleToad Mail MCP Server** connects your AI agent (Claude, Cursor, etc.) to your PurpleToad Mail account via the [Model Context Protocol](https://modelcontextprotocol.io/).
+## Quick start
 
-Your agent can:
+You need Node.js and npm, a PurpleToad Mail account, and an API key from [the dashboard](https://app.purpletoadmail.com). Use Node.js 22 or 24 for the versions covered by this repository's CI. The package's declared minimum remains Node.js 18; it is not in the CI matrix.
 
-- **Send & schedule emails** from your own domains
-- **Read & search inbound messages** with full-text search
-- **Track delivery status** of sent emails
-- **Set up new domains** with copy-paste DNS records
-- **Reference** your domains, mailboxes, and aliases
+1. Create an API key with `read` for inbox access and `send` for sending. Add `manage` only if your assistant needs provisioning, archiving, or webhook creation.
+2. Add this entry to your client's MCP server configuration:
 
-## Installation
-
-Requires Node.js 18+.
-
-The client configs below run the server with `npx -y purpletoadmail-mcp`.
-
-> **Recommended:** Install the companion skill so your AI agent knows when to use PurpleToad Mail and how to call the tools correctly:
->
-> ```bash
-> npx skills add hixistudio/purpletoadmail-skill
-> ```
-
-## Quick Start
-
-### 1. Get an API Key
-
-Log in to [app.purpletoadmail.com](https://app.purpletoadmail.com) → Settings → API Keys → **Create Key**.
-
-Copy the key (starts with `pt_live_` or `pt_test_`). It is shown **once**.
-
-### 2. Configure
-
-**Option A — Environment variables:**
-
-```bash
-export PURPLETOAD_API_KEY="pt_live_your_key_here"
-export PURPLETOAD_DEFAULT_FROM="agent@yourdomain.com"
+```json
+{
+  "mcpServers": {
+    "purpletoadmail": {
+      "command": "npx",
+      "args": ["-y", "purpletoadmail-mcp"],
+      "env": {
+        "PURPLETOAD_API_KEY": "pt_live_your_key_here",
+        "PURPLETOAD_DEFAULT_FROM": "agent@yourdomain.com"
+      }
+    }
+  }
+}
 ```
 
-**Option B — Config file:**
+3. Restart or reload the client's MCP connections. Ask it to list your mailboxes, then read an inbox or draft an email.
 
-```bash
-mkdir -p ~/.purpletoad
-cat > ~/.purpletoad/config.json <<EOF
+For Claude Desktop, put the entry in its MCP server configuration. Cursor and Windsurf use the same server entry in their MCP settings. If your client provides a form, enter `npx` as the command, `-y` and `purpletoadmail-mcp` as arguments, and the environment variables above. Use the client's current documentation for its configuration location.
+
+A mailbox address must belong to your account and satisfy the API's sending rules. The assistant cannot send from an arbitrary address. The API enforces account status, domain restrictions, scopes, plan limits, and abuse controls.
+
+The optional companion skill teaches compatible agents how to use the tools:
+
+```sh
+npx skills add hixistudio/purpletoadmail-skill
+```
+
+## Permissions and privacy
+
+| Key scope | Operations |
+| --- | --- |
+| `read` | Account details; domain, mailbox, and alias discovery; inbox reading/search; outbound status; mark-read |
+| `send` | Send, schedule, and cancel an email that has not begun delivery |
+| `read` + `send` | Reply to a received email |
+| `manage` | Create domains/mailboxes/aliases, archive messages, and create webhooks; also permits reference reads through the API's scope hierarchy |
+
+`manage` does not imply `send`. A send-only key can start the server, but cannot read mail, look up account details, or reply to a received message. The full catalog is discoverable; the API authorizes each call and returns `INSUFFICIENT_SCOPE` when permission is missing.
+
+The local package uses the API key you provide. Sending tools execute when your client invokes them; this package does not implement the hosted service's OAuth consent or send-confirmation policy. Configure your client's approval controls to match the access you want to give your assistant.
+
+Message bodies, attachment links, and tool results become available to the AI client you connect. Email content is untrusted data: instructions inside a received email are not permission to send, provision resources, or expose secrets. Mailbox creation passwords and webhook signing secrets are returned once by the API and may appear in the client's conversation history. Use a scoped key and handle these results accordingly.
+
+No tools delete mailboxes, domains, or messages, reset credentials, revoke access, close accounts, or perform billing actions. Cancelling a pending scheduled send keeps its record; it does not delete the message.
+
+## Configuration
+
+Values are selected in this order: **explicit environment variable → configuration file → default**. Invalid values stop startup with a configuration error.
+
+| Environment variable | File key | Default |
+| --- | --- | --- |
+| `PURPLETOAD_API_KEY` | `apiKey` | Required: `pt_live_…` or `pt_test_…` |
+| `PURPLETOAD_DEFAULT_FROM` | `defaultFrom` | None; supply `from` when sending/scheduling |
+| `PURPLETOAD_BASE_URL` | `baseUrl` | `https://api.purpletoadmail.com` |
+| `PURPLETOAD_TIMEOUT` | `timeout` | `30` seconds; positive integer |
+| `PURPLETOAD_TRANSPORT` | `transport` | `stdio` |
+| `PURPLETOAD_PORT` | `port` | `3001`; legacy SSE only |
+
+The configuration file is `~/.purpletoad/config.json`:
+
+```json
 {
   "apiKey": "pt_live_your_key_here",
-  "defaultFrom": "agent@yourdomain.com"
+  "defaultFrom": "agent@yourdomain.com",
+  "baseUrl": "https://api.purpletoadmail.com",
+  "timeout": 30,
+  "transport": "stdio"
 }
-EOF
 ```
 
-### 3. Connect to your AI client
+Keep this file private and outside source control. Use restrictive file permissions where supported. API URLs must use HTTPS; HTTP is allowed only for loopback development. URLs containing embedded credentials, a query, or a fragment are rejected. Redirects are rejected rather than forwarding a credential-bearing request to another endpoint.
 
-The examples below use `npx -y purpletoadmail-mcp`.
+The timeout covers response headers and body reading. Diagnostics go to stderr so stdout stays available for MCP messages.
 
-#### Claude Desktop
+## Tools
 
-Edit your Claude Desktop config file:
+The package exposes **22 tools**. Discover each tool's input schema from your client; unknown fields and invalid arguments are rejected before making an API request. Results contain `structuredContent` plus equivalent JSON text for older clients, with `success` and MCP `isError` indicating failure.
 
-- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
-- Linux: `~/.config/Claude/claude_desktop_config.json`
+| Tool | Purpose | Scope |
+| --- | --- | --- |
+| `get_account` | Account profile, timezone, plan, usage, and additional credits | `read` |
+| `list_domains` | A page of domains with status and DNS health | `read` |
+| `get_domain` | Domain details and DNS records | `read` |
+| `create_domain` | Add a domain and obtain DNS setup records | `manage` |
+| `list_mailboxes` | A page of mailboxes; optional domain filter | `read` |
+| `get_mailbox` | Mailbox details and quota | `read` |
+| `get_mailbox_status` | Total/unread messages and quota usage | `read` |
+| `create_mailbox` | Create a mailbox by domain ID or name | `manage` |
+| `list_aliases` | A page of aliases; optional domain filter | `read` |
+| `create_alias` | Create an alias pointing to mailbox targets | `manage` |
+| `list_messages` | A page of inbound message previews with filters | `read` |
+| `search_messages` | A page of full-text inbox search results | `read` |
+| `get_message` | Full body, receiving mailbox, and attachment links | `read` |
+| `mark_read` | Mark a batch of up to 100 distinct message IDs as read | `read` |
+| `archive_message` | Archive an inbound message | `manage` |
+| `send_email` | Queue an email for delivery | `send` |
+| `reply_to_message` | Reply from the receiving mailbox and preserve threading | `read`, `send` |
+| `schedule_email` | Schedule an email for future delivery | `send` |
+| `cancel_scheduled_email` | Cancel before delivery begins | `send` |
+| `list_outbound_messages` | A page of outbound messages and delivery status | `read` |
+| `get_outbound_message` | Inspect one message's delivery history | `read` |
+| `set_webhook` | Create a signed-event webhook subscription | `manage` |
+
+### Pagination and lookups
+
+The list/search tools accept `page` and `per_page`. Pages start at 1. Results return `total`, `page`, `per_page`, and `total_pages`; `total` counts all matches, not just the returned page.
+
+The maximum page size is 100, except aliases, which permit 200. `list_messages` keeps `limit` as a compatibility alias for `per_page`; if both are supplied, `per_page` wins. Move to the next page while `page < total_pages`.
+
+Automatic domain-name and mailbox-address lookups scan up to 100 pages of 100 records. They return `LOOKUP_LIMIT_EXCEEDED` if the lookup budget is exhausted. For mailbox creation in a very large account, page through `list_domains` and provide `domain_id` directly.
+
+`get_mailbox_status` never treats a failed count as zero. It returns `STATUS_INCOMPLETE` with available quota/count values and `null` for unavailable counts. `last_received_at` reflects the newest message's email date from the inbox list; it is not a separate delivery-receipt timestamp.
+
+### Sending and replying
+
+Provide a sender, a non-empty recipient list, a subject, and at least one non-empty `text` or `html` body. `from` can be omitted when `PURPLETOAD_DEFAULT_FROM` is configured.
 
 ```json
 {
-  "mcpServers": {
-    "purpletoadmail": {
-      "command": "npx",
-      "args": ["-y", "purpletoadmail-mcp"],
-      "env": {
-        "PURPLETOAD_API_KEY": "pt_live_your_key_here",
-        "PURPLETOAD_DEFAULT_FROM": "agent@yourdomain.com"
-      }
-    }
-  }
+  "from": "hello@yourdomain.com",
+  "to": ["recipient@example.com"],
+  "subject": "Meeting details",
+  "text": "The meeting is at 10:00 tomorrow."
 }
 ```
 
-#### Cursor
+The current API request bounds are 50 total recipients across `to`/`cc`/`bcc`, 10 attachments, and 25 MB of decoded attachment content. Attachments require `filename`, base64 `content`, and an API-supported `content_type`; inline attachments can specify `disposition` and `content_id`. Account entitlements and remaining quota are checked by the API and can impose additional limits.
 
-Add to `~/.cursor/mcp.json`:
+A queued message is not proof of delivery. Use the returned message ID with `get_outbound_message` to track its status. If a send times out, the API might already have accepted it: check outbound status before retrying to avoid duplicates.
 
-```json
-{
-  "mcpServers": {
-    "purpletoadmail": {
-      "command": "npx",
-      "args": ["-y", "purpletoadmail-mcp"],
-      "env": {
-        "PURPLETOAD_API_KEY": "pt_live_your_key_here"
-      }
-    }
-  }
-}
-```
+`reply_to_message` accepts `original_message_id` and a non-empty `text` body, plus optional HTML, CC/BCC, and attachments. It uses the API's receiving `mailbox` as the sender, carries the original thread ID, and appends the original Message-ID to the reference chain. The default sender is a compatibility fallback only when the API response lacks the receiving mailbox.
 
-#### Windsurf
+**Backend compatibility:** reply threading requires the public send API to accept `in_reply_to` and `references`. Deploy the accompanying API schema update before releasing this package. Custom headers remain restricted to `X-*`; the package does not put threading fields into custom headers.
 
-Add to `~/.codeium/windsurf/mcp_config.json`:
+### Scheduling
 
-```json
-{
-  "mcpServers": {
-    "purpletoadmail": {
-      "command": "npx",
-      "args": ["-y", "purpletoadmail-mcp"],
-      "env": {
-        "PURPLETOAD_API_KEY": "pt_live_your_key_here"
-      }
-    }
-  }
-}
-```
+Use `schedule_email` with the sending fields plus `send_at`, an ISO 8601 timestamp with a timezone. The MCP maps `send_at` to the API's `scheduled_at` field. The timestamp must be in the future and within the API's 30-day scheduling window.
 
-#### Kimi Code CLI
+For example, choose a future timestamp such as `2026-10-10T09:00:00+01:00` when it is still within that window. Scheduling returns the message ID, status, scheduled time, and cancellation cutoff if supplied by the API. It does not promise a remaining-quota field.
 
-Kimi Code supports MCP via `~/.kimi-code/mcp.json` (or a project-local `.kimi-code/mcp.json`):
-
-```bash
-mkdir -p ~/.kimi-code
-cat > ~/.kimi-code/mcp.json <<'EOF'
-{
-  "mcpServers": {
-    "purpletoadmail": {
-      "command": "npx",
-      "args": ["-y", "purpletoadmail-mcp"],
-      "env": {
-        "PURPLETOAD_API_KEY": "pt_live_your_key_here",
-        "PURPLETOAD_DEFAULT_FROM": "agent@yourdomain.com"
-      }
-    }
-  }
-}
-EOF
-```
-
-Then run `kimi mcp list` to verify the connection, or use `/mcp-config` inside Kimi Code.
-
-#### SSE (Remote / Self-hosted)
-
-Start the SSE server:
-
-```bash
-PURPLETOAD_TRANSPORT=sse PURPLETOAD_PORT=3001 node dist/index.js
-```
-
-Then configure your client with `http://localhost:3001/sse`. If your MCP client supports headers, include the API key as a Bearer token:
-
-```json
-{
-  "mcpServers": {
-    "purpletoadmail": {
-      "transport": "sse",
-      "url": "http://localhost:3001/sse",
-      "headers": {
-        "Authorization": "Bearer pt_live_your_key_here"
-      }
-    }
-  }
-}
-```
-
-> **Security note:** The SSE endpoint requires `Authorization: Bearer <PURPLETOAD_API_KEY>` on the initial `/sse` request. Without a valid token, the connection is rejected with HTTP 401.
-
-> **Restart required:** Most clients (Claude Desktop, Cursor, Windsurf, etc.) only load MCP servers on startup. Fully quit and reopen the client after editing the config.
-
-### Backend requirements
-
-No extra backend work is required. The MCP server talks to the standard PurpleToad Mail API (`https://api.purpletoadmail.com` by default, override with `PURPLETOAD_BASE_URL`). Just make sure your API key has the scopes you need (`send`, `read`, `manage`).
-
-## Tool Reference
-
-The server exposes **22 tools**.
-
-### Email Operations
-
-| Tool | Description |
-|------|-------------|
-| `send_email` | Send an email from a PurpleToad Mail mailbox (supports attachments) |
-| `reply_to_message` | Reply to a received email, preserving the thread (supports attachments) |
-| `schedule_email` | Schedule an email for future delivery (supports attachments) |
-| `cancel_scheduled_email` | Cancel a scheduled email before it sends |
-| `list_messages` | List received emails with filters (unread, since, from, thread) |
-| `get_message` | Get full message body and attachments |
-| `search_messages` | Full-text search across all inbound emails |
-| `mark_read` | Mark one or more messages as read |
-| `archive_message` | Archive a message to keep your inbox clean |
-| `list_outbound_messages` | List sent emails with delivery status |
-| `get_outbound_message` | Track a single email's delivery history |
-| `get_mailbox_status` | Unread count and quota usage for a mailbox |
-| `get_account` | Account profile, plan, and usage stats |
-
-### Infrastructure Reference
-
-| Tool | Description |
-|------|-------------|
-| `list_domains` | List all domains with DNS health and mailbox counts |
-| `get_domain` | Get detailed domain info including DNS records |
-| `list_mailboxes` | List all mailboxes with quota usage |
-| `get_mailbox` | Get mailbox details (quota, last login, alternate email) |
-| `list_aliases` | List all email aliases with source and targets |
-
-### Domain & Mailbox Setup
-
-| Tool | Description |
-|------|-------------|
-| `create_domain` | Add a new domain and receive copy-paste DNS records. Requires `manage` scope. |
-| `create_mailbox` | Create a mailbox under a verified domain. The auto-generated password is shown once. Requires `manage` scope. |
-| `create_alias` | Create an email alias that forwards to target mailboxes. Requires `manage` scope. |
+Inbox `since` and outbound `date_from`/`date_to` filters also use timestamps with explicit timezones.
 
 ### Webhooks
 
-| Tool | Description |
-|------|-------------|
-| `set_webhook` | Configure a webhook endpoint for push delivery of PurpleToad Mail events (`inbound_email`, `delivery_status`, `bounce`, `complaint`, `domain_verified`, `mailbox_created`, `migration_complete`, `rate_limit_warning`, or `all`). Requires `manage` scope. |
+`set_webhook` creates a subscription; it does not update an existing webhook. Supply an HTTPS URL and a non-empty `events` array using:
 
-## Example Workflows
+`inbound_email`, `delivery_status`, `bounce`, `complaint`, `domain_verified`, `mailbox_created`, `migration_complete`, `rate_limit_warning`, or `all`.
 
-### "Send a welcome email"
+Webhook listing, updates, tests, and deletion are not exposed by this package. Manage existing subscriptions in the dashboard or public API.
 
-```
-User: Send a welcome email from hello@mycompany.com to john@example.com
+## Troubleshooting
 
-Agent: send_email(
-  from="hello@mycompany.com",
-  to=["john@example.com"],
-  subject="Welcome to MyCompany!",
-  text="Thanks for signing up..."
-)
-```
+| Symptom / code | What to check |
+| --- | --- |
+| Server does not appear | Verify Node/npm are available to the AI client's process; reload MCP connections after changing settings |
+| Startup key validation fails | Check the API URL, key revocation, IP restrictions, and connectivity; a send-only key is accepted only on an authenticated scope response |
+| `INSUFFICIENT_SCOPE` | Add the operation's required scope to an appropriate key; `manage` does not grant sending |
+| `INVALID_ARGUMENT` | Read the input schema and field-level diagnostics; pages must be positive integers and dates must include a timezone |
+| `HTTP_422` | Inspect `message` and `details.validation` for rejected API fields; confirm backend compatibility |
+| `TIMEOUT` | Check API availability; check outbound status before retrying a consequential operation |
+| `RATE_LIMIT_EXCEEDED` / HTTP 429 | Respect `retry_after` when returned; inspect API-provided limits rather than assuming a daily quota |
+| `STATUS_INCOMPLETE` | A mailbox count request failed or returned incomplete data; unavailable values are null, not zero |
+| `LOOKUP_LIMIT_EXCEEDED` | Page through resources and use IDs where the tool accepts them |
+| `INVALID_RESPONSE` | The API/proxy returned a successful non-JSON body; verify the base URL and proxy |
 
-### "Check my unread emails"
+Errors include `http_status`, `retry_after`, and rate-limit headers in `details.headers` when available. FastAPI validation diagnostics omit rejected input values. Sends are not automatically retried.
 
-```
-User: Do I have any unread emails in support@mycompany.com?
+## Optional legacy SSE
 
-Agent: list_messages(mailbox="support@mycompany.com", unread_only=true)
-Agent: get_account()
-```
+Use stdio unless your local client specifically requires SSE. SSE is retained as a legacy compatibility transport, not the hosted MCP endpoint.
 
-### "Find that invoice from last week"
-
-```
-User: Find the invoice email from Acme Corp I received last week
-
-Agent: search_messages(query="invoice Acme")
-Agent: get_message(message_id="...")
+```sh
+PURPLETOAD_TRANSPORT=sse PURPLETOAD_PORT=3001 npx -y purpletoadmail-mcp
 ```
 
-### "Set up a new domain"
+Set the API key through the environment or configuration file as above. Connect to `http://127.0.0.1:3001/sse` and configure `Authorization: Bearer <your API key>` on **both** the initial SSE GET and subsequent message POST requests.
 
-```
-User: Add mycompany.com to PurpleToad Mail
+The listener binds to `127.0.0.1`, validates the Host header, rejects browser Origin headers, and limits simultaneous local sessions to 32. Each connection has its own MCP server/session. The SDK also caps individual SSE POST bodies at 4 MB, below the API attachment limit. Use stdio for larger payloads. This mode is for non-browser clients on the same computer; it cannot be exposed on another interface through a configuration option. Use the separate hosted service for its supported remote connection model.
 
-Agent: create_domain(domain="mycompany.com")
-```
+## Development and verification
 
-The AI returns a formatted DNS table:
-
-```
-| Type  | Host (Name)        | Value / Points to                            | Priority | TTL  |
-|-------|--------------------|----------------------------------------------|----------|------|
-| MX    | @                  | mail.purpletoadmail.com                      | 10       | 3600 |
-| TXT   | @                  | v=spf1 include:mail.purpletoadmail.com ~all  | —        | 3600 |
-| TXT   | pt2024._domainkey  | v=DKIM1; k=rsa; p=MIGfMA...                  | —        | 3600 |
-| TXT   | _dmarc             | v=DMARC1; p=quarantine; ...                  | —        | 3600 |
+```sh
+npm ci
+npm run check
+npm pack --dry-run
+npm audit --omit=dev
 ```
 
-Copy these into your DNS provider (Cloudflare, Namecheap, GoDaddy, etc.). The domain verifies automatically within minutes.
+`npm run check` runs type checking, compilation, contract tests, and stdio/SSE protocol tests against a local mock API. It needs permission to open loopback ports. It does not use real keys or send real email.
 
-### "Create a mailbox"
-
-```
-User: Create a new mailbox support@mycompany.com
-
-Agent: create_mailbox(
-  domain_id="uuid",
-  local_part="support",
-  display_name="Support Team",
-  quota_mb=512
-)
-```
-
-The AI returns the new mailbox password. **Copy it and change it immediately** — it is shown once only.
-
-### "Create a support alias"
-
-```
-User: Set up a support alias that forwards to alice and bob
-
-Agent: create_alias(
-  domain_id="uuid",
-  source="support",
-  targets=["alice@mycompany.com", "bob@mycompany.com"]
-)
-```
-
-### "Track whether my newsletter was delivered"
-
-```
-User: Was yesterday's newsletter delivered?
-
-Agent: list_outbound_messages(
-  date_from="2026-06-01",
-  status="delivered"
-)
-Agent: get_outbound_message(message_id="...")
-```
-
-### "Schedule a follow-up"
-
-```
-User: Schedule a follow-up email for next Monday at 9am
-
-Agent: schedule_email(
-  from="sales@mycompany.com",
-  to=["prospect@example.com"],
-  subject="Following up",
-  text="Just checking in...",
-  send_at="2026-06-08T09:00:00Z"
-)
-```
-
-## Configuration Reference
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `PURPLETOAD_API_KEY` | **Yes** | — | Your API key (`pt_live_*` or `pt_test_*`) |
-| `PURPLETOAD_DEFAULT_FROM` | No | — | Default sender address if `from` is omitted |
-| `PURPLETOAD_BASE_URL` | No | `https://api.purpletoadmail.com` | API base URL |
-| `PURPLETOAD_TIMEOUT` | No | `30` | Request timeout in seconds |
-| `PURPLETOAD_TRANSPORT` | No | `stdio` | `stdio` or `sse` |
-| `PURPLETOAD_PORT` | No | `3001` | Port for SSE transport |
-
-## Error Handling
-
-All tools return structured JSON with `success: false` on error:
-
-```json
-{
-  "success": false,
-  "error": "RATE_LIMIT_EXCEEDED",
-  "message": "Daily email limit reached.",
-  "suggestion": "Wait until tomorrow or upgrade your plan."
-}
-```
-
-Common error codes:
-
-| Code | Meaning | Suggestion |
-|------|---------|------------|
-| `INVALID_FROM` | Sender not a valid mailbox | Use `list_mailboxes` to find valid addresses |
-| `DOMAIN_NOT_VERIFIED` | DNS records missing | Use `get_domain` to see required records |
-| `RATE_LIMIT_EXCEEDED` | Plan limit hit | Wait or upgrade at app.purpletoadmail.com |
-| `INSUFFICIENT_SCOPE` | API key lacks permission | Create a key with the required scope in the dashboard |
-| `TIMEOUT` | Request timed out | Retry or increase `PURPLETOAD_TIMEOUT` |
-
-## Rate Limits
-
-Rate limits, quotas, and attachment size vary by plan. Check your account
-dashboard for current limits.
-
-The `send_email` and `schedule_email` tools return remaining quota in the response.
+Pull requests run checks on Node.js 22 and 24. Publishing also runs the regression suite. External validation is still required for delivery, DNS, mailbox provisioning, object-storage attachment links, and real client compatibility. Passing mocked tests is not production validation.
 
 ## Support
 
-- **Website**: [purpletoadmail.com](https://purpletoadmail.com)
-- **Dashboard**: [app.purpletoadmail.com](https://app.purpletoadmail.com)
-- **Support**: hello@purpletoadmail.com
+- [PurpleToad Mail](https://purpletoadmail.com)
+- [Account dashboard](https://app.purpletoadmail.com)
+- [Report a package issue](https://github.com/hixistudio/purpletoadmail-mcp/issues)
 
-## License
-
-MIT © PurpleToad Mail
+MIT license.

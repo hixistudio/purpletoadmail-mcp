@@ -1,90 +1,74 @@
-// CHECKPOINT: PRD-06 FR-6.2.8 Tool: get_mailbox_status — unread count and quota usage for a mailbox.
-
+// CHECKPOINT: PRD-06 FR-6.2.8 Paginated mailbox lookup and API-authoritative inbox counts.
 import { client } from "../client.js";
-import { isValidEmail } from "../lib/validation.js";
 
 export const getMailboxStatusTool = {
   name: "get_mailbox_status",
-  description: `Get unread count, total messages, and quota usage for a PurpleToad Mail mailbox.
-
-Example: get_mailbox_status(mailbox="agent@mycompany.com")`,
+  description:
+    "Get total/unread message counts and quota usage for a mailbox. Incomplete requests return an error with known values and null for unavailable counts.",
   inputSchema: {
     type: "object" as const,
     properties: {
-      mailbox: {
-        type: "string",
-        description: "The full mailbox email address (e.g., 'agent@mycompany.com')",
-      },
+      mailbox: { type: "string", description: "Full mailbox email address" },
     },
     required: ["mailbox"],
   },
-
   async handler(args: Record<string, unknown>) {
-    const mailbox = args.mailbox as string;
-    if (!mailbox || !isValidEmail(mailbox)) {
+    let mailbox = args.mailbox as string;
+    const lookup = await client.findResource("mailboxes", "email", mailbox);
+    if (!lookup.success)
       return {
         success: false,
-        error: "INVALID_ARGUMENT",
-        message: "'mailbox' is required and must be a valid email address.",
+        error:
+          lookup.error?.code === "NOT_FOUND"
+            ? "MAILBOX_NOT_FOUND"
+            : lookup.error?.code,
+        message: lookup.error?.message,
+        details: lookup.error?.details,
+        http_status: lookup.error?.http_status,
+        retry_after: lookup.error?.retry_after,
       };
-    }
-
-    // Find the mailbox ID and quota from the mailbox list.
-    const listResult = await client.listMailboxes();
-    if (!listResult.success) {
-      return {
-        success: false,
-        error: listResult.error?.code || "LIST_FAILED",
-        message: listResult.error?.message || "Failed to list mailboxes",
-      };
-    }
-
-    const data = listResult.data as Record<string, unknown>;
-    const mailboxes = (data.mailboxes || []) as Array<Record<string, unknown>>;
-    const match = mailboxes.find((m) => m.email === mailbox);
-    if (!match) {
-      return {
-        success: false,
-        error: "MAILBOX_NOT_FOUND",
-        message: `Mailbox '${mailbox}' not found.`,
-        suggestion: "Use list_mailboxes to see available mailbox addresses.",
-      };
-    }
-
-    const quotaMb = typeof match.quota_mb === "number" ? match.quota_mb : 0;
-    const quotaUsedMb = typeof match.quota_used_mb === "number" ? match.quota_used_mb : 0;
-
-    // Count total messages for this mailbox.
-    const totalResult = await client.listMessages({ mailbox, limit: 1 });
-    const totalMessages = totalResult.success
-      ? ((totalResult.data as Record<string, unknown>).total as number) || 0
-      : 0;
-
-    // Count unread messages for this mailbox.
-    const unreadResult = await client.listMessages({ mailbox, unread_only: true, limit: 1 });
-    const unreadCount = unreadResult.success
-      ? ((unreadResult.data as Record<string, unknown>).total as number) || 0
-      : 0;
-
-    // Find last received message date.
-    let lastReceivedAt: string | null = null;
-    if (totalResult.success) {
-      const totalData = totalResult.data as Record<string, unknown>;
-      const messages = (totalData.messages || []) as Array<Record<string, unknown>>;
-      if (messages.length > 0 && messages[0].date) {
-        lastReceivedAt = String(messages[0].date);
-      }
-    }
-
+    const match = lookup.data!;
+    if (typeof match.email === "string") mailbox = match.email;
+    const [totalResult, unreadResult] = await Promise.all([
+      client.listMessages({ mailbox, limit: 1 }),
+      client.listMessages({ mailbox, unread_only: true, limit: 1 }),
+    ]);
+    const count = (result: typeof totalResult) => {
+      if (!result.success) return null;
+      const data = result.data as Record<string, unknown>;
+      const pagination = data.pagination as Record<string, unknown> | undefined;
+      return typeof pagination?.total === "number" ? pagination.total : null;
+    };
+    const total = count(totalResult),
+      unread = count(unreadResult);
+    const messages = ((totalResult.data as Record<string, unknown> | undefined)
+      ?.messages || []) as Record<string, unknown>[];
+    const quota = typeof match.quota_mb === "number" ? match.quota_mb : null;
+    const used =
+      typeof match.quota_used_mb === "number" ? match.quota_used_mb : null;
+    const complete = total !== null && unread !== null;
     return {
-      success: true,
+      success: complete,
+      ...(complete
+        ? {}
+        : {
+            error: "STATUS_INCOMPLETE",
+            message: "Could not retrieve all mailbox counts",
+            details: {
+              total_error: totalResult.error,
+              unread_error: unreadResult.error,
+            },
+          }),
       mailbox,
-      total_messages: totalMessages,
-      unread_count: unreadCount,
-      quota_used_mb: quotaUsedMb,
-      quota_limit_mb: quotaMb,
-      quota_percent: quotaMb > 0 ? parseFloat(((quotaUsedMb / quotaMb) * 100).toFixed(1)) : 0,
-      last_received_at: lastReceivedAt,
+      total_messages: total,
+      unread_count: unread,
+      quota_used_mb: used,
+      quota_limit_mb: quota,
+      quota_percent:
+        quota !== null && used !== null && quota > 0
+          ? Number(((used / quota) * 100).toFixed(1))
+          : null,
+      last_received_at: messages[0]?.email_date ?? null,
     };
   },
 };

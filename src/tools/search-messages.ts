@@ -4,7 +4,7 @@ export const searchMessagesTool = {
   name: "search_messages",
   description: `Full-text search across all inbound emails using PostgreSQL GIN index. Returns matching message previews.
 
-Example: search_messages(query="invoice", mailbox="billing@mycompany.com", limit=20)`,
+Example: search_messages(query="invoice", mailbox="billing@mycompany.com", per_page=20)`,
   inputSchema: {
     type: "object" as const,
     properties: {
@@ -51,6 +51,9 @@ Example: search_messages(query="invoice", mailbox="billing@mycompany.com", limit
       return {
         success: false,
         error: result.error?.code || "SEARCH_FAILED",
+        details: result.error?.details,
+        http_status: result.error?.http_status,
+        retry_after: result.error?.retry_after,
         message: result.error?.message || "Failed to search messages",
       };
     }
@@ -58,7 +61,7 @@ Example: search_messages(query="invoice", mailbox="billing@mycompany.com", limit
     const data = result.data as Record<string, unknown>;
     const messages = (data.messages || data.items || []) as Array<Record<string, unknown>>;
     const pagination = (data.pagination || {}) as Record<string, unknown>;
-    const total = (pagination.total || messages.length) as number;
+    const total = (pagination.total ?? messages.length) as number;
 
     return {
       success: true,
@@ -78,7 +81,8 @@ Example: search_messages(query="invoice", mailbox="billing@mycompany.com", limit
       }),
       total,
       page: pagination.page || 1,
-      per_page: Math.min(args.per_page as number || 20, 100),
+      per_page: pagination.per_page ?? args.per_page ?? 20,
+      total_pages: pagination.total_pages ?? 1,
     };
   },
 };

@@ -1,7 +1,7 @@
 {
   "name": "purpletoadmail-mcp",
   "version": "2.0.4",
-  "description": "Model Context Protocol server for PurpleToad Mail — send, receive, search, and manage email from any AI agent",
+  "description": "Model Context Protocol server for PurpleToad Mail \u2014 send, receive, search, and manage email from any AI agent",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -16,11 +16,15 @@
     "dev": "tsc --watch",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run typecheck && npm run build"
+    "prepublishOnly": "npm run check",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "check": "npm run typecheck && npm test"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "express": "^5.2.1"
+    "@modelcontextprotocol/sdk": "^1.32.0",
+    "express": "^5.2.1",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

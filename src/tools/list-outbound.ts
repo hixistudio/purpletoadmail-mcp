@@ -4,7 +4,7 @@ export const listOutboundTool = {
   name: "list_outbound_messages",
   description: `List sent/outbound emails with delivery status and tracking. Filter by status, domain, date range, or thread.
 
-Example: list_outbound_messages(status="delivered", limit=20)`,
+Example: list_outbound_messages(status="delivered", per_page=20)`,
   inputSchema: {
     type: "object" as const,
     properties: {
@@ -57,6 +57,9 @@ Example: list_outbound_messages(status="delivered", limit=20)`,
       return {
         success: false,
         error: result.error?.code || "LIST_FAILED",
+        details: result.error?.details,
+        http_status: result.error?.http_status,
+        retry_after: result.error?.retry_after,
         message: result.error?.message || "Failed to list outbound messages",
       };
     }
@@ -64,7 +67,7 @@ Example: list_outbound_messages(status="delivered", limit=20)`,
     const data = result.data as Record<string, unknown>;
     const messages = (data.messages || data.items || []) as Array<Record<string, unknown>>;
     const pagination = (data.pagination || {}) as Record<string, unknown>;
-    const total = (pagination.total || messages.length) as number;
+    const total = (pagination.total ?? messages.length) as number;
 
     return {
       success: true,
@@ -80,7 +83,8 @@ Example: list_outbound_messages(status="delivered", limit=20)`,
       })),
       total,
       page: pagination.page || 1,
-      per_page: Math.min(args.per_page as number || 20, 100),
+      per_page: pagination.per_page ?? args.per_page ?? 20,
+      total_pages: pagination.total_pages ?? 1,
     };
   },
 };

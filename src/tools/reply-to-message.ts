@@ -42,9 +42,16 @@ Example: reply_to_message(original_message_id="msg_uuid", text="2pm works perfec
           type: "object",
           properties: {
             filename: { type: "string" },
-            content: { type: "string", description: "Base64-encoded file content" },
+            content: {
+              type: "string",
+              description: "Base64-encoded file content",
+            },
             content_type: { type: "string" },
-            disposition: { type: "string", enum: ["attachment", "inline"], default: "attachment" },
+            disposition: {
+              type: "string",
+              enum: ["attachment", "inline"],
+              default: "attachment",
+            },
             content_id: { type: "string" },
           },
           required: ["filename", "content", "content_type"],
@@ -81,6 +88,9 @@ Example: reply_to_message(original_message_id="msg_uuid", text="2pm works perfec
       return {
         success: false,
         error: originalResult.error?.code || "NOT_FOUND",
+        details: originalResult.error?.details,
+        http_status: originalResult.error?.http_status,
+        retry_after: originalResult.error?.retry_after,
         message: originalResult.error?.message || "Original message not found",
         suggestion: "Use list_messages to find valid message IDs.",
       };
@@ -97,13 +107,8 @@ Example: reply_to_message(original_message_id="msg_uuid", text="2pm works perfec
       };
     }
 
-    const originalTo = (original.to || []) as Array<Record<string, unknown>>;
-    let replyFrom = config.defaultFrom || "";
-
-    if (!replyFrom && originalTo.length > 0) {
-      const firstTo = originalTo[0];
-      replyFrom = (firstTo.email as string) || "";
-    }
+    // CHECKPOINT: PRD-06 FR-6.2.6 Use the API-authoritative receiving mailbox.
+    const replyFrom = (original.mailbox as string) || config.defaultFrom || "";
 
     if (!replyFrom || !isValidEmail(replyFrom)) {
       return {
@@ -123,13 +128,18 @@ Example: reply_to_message(original_message_id="msg_uuid", text="2pm works perfec
 
     const subjectValidation = validateSubject(subject);
     if (!subjectValidation.valid) {
-      return { success: false, error: "INVALID_ARGUMENT", message: subjectValidation.error };
+      return {
+        success: false,
+        error: "INVALID_ARGUMENT",
+        message: subjectValidation.error,
+      };
     }
 
     const cc = (args.cc as string[] | undefined) || [];
     const bcc = (args.bcc as string[] | undefined) || [];
 
-    const attachments = (args.attachments as Array<Record<string, unknown>> | undefined) || [];
+    const attachments =
+      (args.attachments as Array<Record<string, unknown>> | undefined) || [];
     if (attachments.length > 10) {
       return {
         success: false,
@@ -138,14 +148,18 @@ Example: reply_to_message(original_message_id="msg_uuid", text="2pm works perfec
       };
     }
 
-    // Build reply threading headers from the original Message-ID when available.
+    // Build explicit reply threading fields from the original Message-ID when available.
     const originalMessageHeader = (original.message_id_header as string) || "";
-    const replyHeaders: Record<string, string> | undefined = originalMessageHeader
-      ? {
-          "In-Reply-To": originalMessageHeader,
-          "References": originalMessageHeader,
-        }
-      : undefined;
+    const originalHeaders = (original.headers || {}) as Record<string, unknown>;
+    const referencesHeader = Object.entries(originalHeaders).find(
+      ([key]) => key.toLowerCase() === "references",
+    )?.[1];
+    const references: string[] =
+      typeof referencesHeader === "string"
+        ? referencesHeader.match(/<[^<>\s]+@[^<>\s]+>/g) || []
+        : [];
+    if (originalMessageHeader && !references.includes(originalMessageHeader))
+      references.push(originalMessageHeader);
 
     const result = await client.sendEmail({
       from_email: replyFrom,
@@ -163,13 +177,17 @@ Example: reply_to_message(original_message_id="msg_uuid", text="2pm works perfec
         disposition: (a.disposition as string) || "attachment",
         content_id: a.content_id as string | undefined,
       })),
-      headers: replyHeaders,
+      in_reply_to: originalMessageHeader || undefined,
+      references: references.length ? references.slice(-100) : undefined,
     });
 
     if (!result.success) {
       return {
         success: false,
         error: result.error?.code || "SEND_FAILED",
+        details: result.error?.details,
+        http_status: result.error?.http_status,
+        retry_after: result.error?.retry_after,
         message: result.error?.message || "Failed to send reply",
         suggestion: _getSuggestion(result.error?.code),
       };
@@ -189,10 +207,16 @@ Example: reply_to_message(original_message_id="msg_uuid", text="2pm works perfec
 
 function _getSuggestion(code?: string): string {
   const suggestions: Record<string, string> = {
+    TIMEOUT:
+      "The API may have accepted the message. Check outbound status before retrying to avoid duplicates.",
+    REQUEST_FAILED:
+      "Check API connectivity and outbound status before retrying to avoid duplicates.",
     INVALID_FROM: "The reply 'from' address must be a mailbox you own.",
-    RATE_LIMIT_EXCEEDED: "Daily email limit reached. Wait until tomorrow or upgrade your plan.",
+    RATE_LIMIT_EXCEEDED:
+      "API rate limit reached. Respect retry_after when provided and check current account usage.",
     INSUFFICIENT_SCOPE: "Your API key needs 'send' scope to reply to messages.",
-    DOMAIN_NOT_ACTIVE: "The sender domain is not verified. Add DNS records and wait for verification.",
+    DOMAIN_NOT_ACTIVE:
+      "The sender domain is not verified. Add DNS records and wait for verification.",
   };
   return suggestions[code || ""] || "Check the error details and retry.";
 }

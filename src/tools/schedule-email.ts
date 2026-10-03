@@ -74,7 +74,7 @@ Example: schedule_email(from="agent@mycompany.com", to=["john@example.com"], sub
         success: false,
         error: "NO_DEFAULT_FROM",
         message: "No 'from' address provided and no PURPLETOAD_DEFAULT_FROM configured.",
-        suggestion: "Set default_from in ~/.purpletoad/config.json or provide from in each call.",
+        suggestion: "Set defaultFrom in ~/.purpletoad/config.json or provide from in each call.",
       };
     }
 
@@ -144,6 +144,9 @@ Example: schedule_email(from="agent@mycompany.com", to=["john@example.com"], sub
       return {
         success: false,
         error: result.error?.code || "SCHEDULE_FAILED",
+        details: result.error?.details,
+        http_status: result.error?.http_status,
+        retry_after: result.error?.retry_after,
         message: result.error?.message || "Failed to schedule email",
         suggestion: _getSuggestion(result.error?.code),
       };
@@ -165,8 +168,10 @@ Example: schedule_email(from="agent@mycompany.com", to=["john@example.com"], sub
 
 function _getSuggestion(code?: string): string {
   const suggestions: Record<string, string> = {
+    TIMEOUT: "The API may have accepted the message. Check outbound status before retrying to avoid duplicates.",
+    REQUEST_FAILED: "Check API connectivity and outbound status before retrying to avoid duplicates.",
     INVALID_FROM: "The 'from' address must be a mailbox you own. Use list_mailboxes to see available addresses.",
-    RATE_LIMIT_EXCEEDED: "Daily email limit reached. Wait until tomorrow or upgrade your plan.",
+    RATE_LIMIT_EXCEEDED: "API rate limit reached. Respect retry_after when provided and check current account usage.",
     DOMAIN_NOT_ACTIVE: "The sender domain is not verified. Add DNS records and wait for verification.",
   };
   return suggestions[code || ""] || "Check the error details and retry.";

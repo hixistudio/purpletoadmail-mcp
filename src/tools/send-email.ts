@@ -76,7 +76,7 @@ Example: send_email(from="agent@mycompany.com", to=["john@example.com"], subject
         success: false,
         error: "NO_DEFAULT_FROM",
         message: "No 'from' address provided and no PURPLETOAD_DEFAULT_FROM configured.",
-        suggestion: "Set default_from in ~/.purpletoad/config.json or provide from in each call.",
+        suggestion: "Set defaultFrom in ~/.purpletoad/config.json or provide from in each call.",
       };
     }
 
@@ -137,8 +137,10 @@ Example: send_email(from="agent@mycompany.com", to=["john@example.com"], subject
       return {
         success: false,
         error: result.error?.code || "SEND_FAILED",
-        message: result.error?.message || "Failed to send email",
         details: result.error?.details,
+        http_status: result.error?.http_status,
+        retry_after: result.error?.retry_after,
+        message: result.error?.message || "Failed to send email",
         suggestion: _getSuggestion(result.error?.code),
       };
     }
@@ -165,8 +167,10 @@ Example: send_email(from="agent@mycompany.com", to=["john@example.com"], subject
 
 function _getSuggestion(code?: string): string {
   const suggestions: Record<string, string> = {
+    TIMEOUT: "The API may have accepted the message. Check outbound status before retrying to avoid duplicates.",
+    REQUEST_FAILED: "Check API connectivity and outbound status before retrying to avoid duplicates.",
     INVALID_FROM: "The 'from' address must be a mailbox you own. Use list_mailboxes to see available addresses.",
-    RATE_LIMIT_EXCEEDED: "Daily email limit reached. Wait until tomorrow or upgrade your plan.",
+    RATE_LIMIT_EXCEEDED: "API rate limit reached. Respect retry_after when provided and check current account usage.",
     SUPPRESSED_ADDRESS: "The recipient address has been suppressed due to hard bounces. Use a different address.",
     INSUFFICIENT_SCOPE: "Your API key needs 'send' scope. Create a new key with send permission.",
     DOMAIN_NOT_ACTIVE: "The sender domain is not verified. Add DNS records and wait for verification.",

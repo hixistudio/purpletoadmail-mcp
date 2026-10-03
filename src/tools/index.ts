@@ -1,5 +1,6 @@
 // CHECKPOINT: PRD-06 FR-6.1.5 tools/list and tools/call expose all PurpleToad Mail tools to MCP clients.
 
+import { prepareTool } from "../lib/tool-contract.js";
 import { createDomainTool } from "./create-domain.js";
 import { listDomainsTool } from "./list-domains.js";
 import { getDomainTool } from "./get-domain.js";
@@ -27,6 +28,8 @@ export interface ToolDef {
   name: string;
   description: string;
   inputSchema: object;
+  outputSchema?: object;
+  annotations?: { readOnlyHint: boolean; destructiveHint: boolean; idempotentHint: boolean; openWorldHint: boolean };
   handler: (args: Record<string, unknown>) => Promise<unknown>;
 }
 
@@ -75,7 +78,8 @@ for (const tool of rawTools) {
   }
 }
 
-export const tools: Record<string, ToolDef> = {};
+export const tools: Record<string, ToolDef> = Object.create(null);
 for (const tool of rawTools) {
-  tools[tool.name] = tool;
+  if (Object.hasOwn(tools, tool.name)) throw new Error(`Duplicate tool: ${tool.name}`);
+  tools[tool.name] = prepareTool(tool);
 }

@@ -36,6 +36,9 @@ Example: create_domain(domain="mycompany.com")`,
       return {
         success: false,
         error: result.error?.code || "CREATE_FAILED",
+        details: result.error?.details,
+        http_status: result.error?.http_status,
+        retry_after: result.error?.retry_after,
         message: result.error?.message || "Failed to create domain",
         suggestion: _getSuggestion(result.error?.code),
       };

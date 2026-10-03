@@ -32,6 +32,9 @@ Example: archive_message(message_id="msg_uuid")`,
       return {
         success: false,
         error: result.error?.code || "ARCHIVE_FAILED",
+        details: result.error?.details,
+        http_status: result.error?.http_status,
+        retry_after: result.error?.retry_after,
         message: result.error?.message || "Failed to archive message",
         suggestion: "Use list_messages or search_messages to find valid message IDs.",
       };

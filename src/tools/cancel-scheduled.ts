@@ -32,6 +32,9 @@ Example: cancel_scheduled_email(message_id="msg_uuid")`,
       return {
         success: false,
         error: result.error?.code || "CANCEL_FAILED",
+        details: result.error?.details,
+        http_status: result.error?.http_status,
+        retry_after: result.error?.retry_after,
         message: result.error?.message || "Failed to cancel scheduled email",
         suggestion: _getSuggestion(result.error?.code),
       };

@@ -72,6 +72,9 @@ Example: set_webhook(url="https://myagent.com/webhook", events=["inbound_email"]
       return {
         success: false,
         error: result.error?.code || "CREATE_FAILED",
+        details: result.error?.details,
+        http_status: result.error?.http_status,
+        retry_after: result.error?.retry_after,
         message: result.error?.message || "Failed to configure webhook",
         suggestion: _getSuggestion(result.error?.code),
       };
